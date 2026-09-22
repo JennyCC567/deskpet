@@ -8,6 +8,14 @@ Deskpet watches a local JSON file:
 
 The file is intentionally small and local. VS Code, Cursor, Codex hooks, terminal wrappers, or project scripts can all update the same contract.
 
+The VS Code/Cursor extension has three bridge modes:
+
+- `vscode`: the extension owns `.deskpet/state.json` and refreshes it from editor APIs.
+- `external`: the extension launches Deskpet but an external Codex or Claude Code adapter owns the state file.
+- `desktop`: no state file is passed to the desktop app.
+
+When `deskpet.externalStateFile` is set, relative paths resolve from the workspace root.
+
 ## Minimal Event
 
 ```json
@@ -37,6 +45,7 @@ The file is intentionally small and local. VS Code, Cursor, Codex hooks, termina
 - `waiting_approval`: user approval is needed.
 - `warning`: warnings exist.
 - `error`: errors or failed tasks exist.
+- `bug_hunt`: explicit special bug/caterpillar interaction state.
 - `completed`: task, tests, build, or agent turn completed.
 - `interrupted`: task was stopped or cancelled.
 
@@ -98,6 +107,7 @@ npm run event -- in_progress "Codex is editing files"
 npm run event -- running_command "Running npm test"
 npm run event -- completed "Task completed" --task "npm test" --exit-code 0
 npm run event -- error "Tests failed" --task "npm test" --exit-code 1
+npm run event -- bug_hunt "Caterpillar spotted"
 ```
 
 ## Codex Mapping
@@ -109,6 +119,7 @@ Keep Codex integration as an adapter that writes this file. Recommended mapping:
 - tool/shell command started: `running_command`;
 - file write or patch applied: `editing_files`;
 - permission requested: `waiting_approval`;
+- explicit bug/target event: `bug_hunt`;
 - turn completed: `completed`;
 - turn failed or command failed: `error`;
 - stop/session end/cancel: `interrupted`.

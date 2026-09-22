@@ -29,10 +29,13 @@ Deskpet now treats animation as three layers:
 Current puppy mapping:
 
 - Base idle: `sit` and `lie`, with `sit_to_lie` and `lie_to_sit` one-second transitions.
-- Ambient idle: `music`, `accordion`, `autumn`.
-- Interaction: sitting click uses `wave`; lying click uses `petted`; drag uses `lift_up`, looping `sway`, then `put_down`.
+- Ambient idle: `music`, `lying`, `accordion`, `autumn`, with optional enter/exit transitions.
+- Interaction: sitting click uses `wave`; lying click uses `petted`; drag uses pose-specific lift, looping `sway`, then `put_down`.
 - Task in progress: `cycling`, `reading`, `reading_alt`.
-- Task completed: `idle_flowers`, `firework`.
+- Task completed: random `flowers` or `firework`.
+- Special task state: `bug_hunt` alternates `caterpillar` and `poke_bug`.
+
+Most main WebP actions are finite repeated units: play the optional entry transition, then repeat `animated WebP once -> PNG still hold` 2-5 times, then play the optional exit transition and settle to the correct base pose. Explicit loops are reserved for interaction states that last until direct input ends, such as drag `sway`; the current `bug_hunt` state alternates two non-looping debug animations while the state remains active.
 
 This keeps the product flexible: one task state can randomly choose from several animations, and a new puppy skin can change the mapping without changing the runtime.
 
@@ -44,12 +47,12 @@ This keeps the product flexible: one task state can randomly choose from several
 - Other idle action click: randomly switch idle action.
 - Double click: pin or unpin the status bubble.
 - Triple click: enter sleep mode.
-- Long press: show the current status bubble.
-- Drag: play a 1 second lift animation, loop sway while moving, and play a 1 second put-down animation on release.
+- Long press: show the current status bubble and start the pose-specific lift.
+- Drag: play `sit_lift_up` or `lie_lift_up`, loop `sway` while moving, and play `put_down` on release.
 - Right click: open the pet menu.
 - Tray icon: restore the pet after it is hidden.
 
-Right-click menu options currently include hide/show, show bubble, pin bubble, force idle, force task-in-progress, force completed, random idle action, sleep/wake, and quit.
+Right-click menu options currently include hide/show, show bubble, pin bubble, force idle, force task-in-progress, force completed, force bug-hunt, random idle action, sleep/wake, and quit.
 
 ## State Machine
 
@@ -65,6 +68,7 @@ Deskpet's logic states are intentionally independent from image names:
 - `waiting_approval`: agent or tool is blocked on user approval.
 - `warning`: workspace diagnostics contain warnings.
 - `error`: task failure or workspace diagnostics contain errors.
+- `bug_hunt`: an explicit special target/caterpillar state.
 - `completed`: recent task/test/agent turn completed.
 - `interrupted`: task was stopped or cancelled.
 

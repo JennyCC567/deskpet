@@ -13,6 +13,7 @@
 
   const state = {
     action: manifest.defaultAction,
+    visualVariant: "still",
     visualRevision: 0,
     direction: 1,
     reportedReady: false,
@@ -21,6 +22,7 @@
     startX: 0,
     startY: 0,
     dragStarted: false,
+    nativeDragStarted: false,
     longPressed: false,
     longPressTimer: undefined,
     bubbleTimer: undefined,
@@ -39,13 +41,21 @@
     return manifest.actions?.[actionName] || manifest.actions?.[manifest.defaultAction];
   }
 
-  function setAction(actionName, forceReplay = false) {
+  function actionFile(action, visualVariant) {
+    if (visualVariant === "still") {
+      return action.still || action.animated;
+    }
+
+    return action.animated || action.still;
+  }
+
+  function setAction(actionName, visualVariant = "animated", forceReplay = false) {
     const action = resolveAction(actionName);
     if (!action) {
       return;
     }
 
-    const src = assetUrl(action.animated || action.still);
+    const src = assetUrl(actionFile(action, visualVariant));
     if (src && (forceReplay || pet.src !== src)) {
       pet.src = "";
       requestAnimationFrame(() => {
@@ -53,6 +63,7 @@
       });
     }
     pet.dataset.action = actionName;
+    pet.dataset.variant = visualVariant;
   }
 
   function reportReadyOnce() {
@@ -110,6 +121,15 @@
     }
   }
 
+  function beginNativeDrag() {
+    if (state.nativeDragStarted) {
+      return;
+    }
+
+    state.nativeDragStarted = true;
+    window.deskpet.pointerDown({ x: state.startX, y: state.startY });
+  }
+
   function handlePointerDown(event) {
     if (event.button === 2) {
       return;
@@ -120,6 +140,7 @@
     state.startX = event.clientX;
     state.startY = event.clientY;
     state.dragStarted = false;
+    state.nativeDragStarted = false;
     state.longPressed = false;
     stage.setPointerCapture(event.pointerId);
     clearLongPressTimer();
@@ -130,11 +151,16 @@
 
       state.longPressed = true;
       window.deskpet.longPress();
+      beginNativeDrag();
     }, 650);
   }
 
   function handlePointerMove(event) {
     if (!state.pointerDown || state.dragStarted) {
+      return;
+    }
+
+    if (!state.longPressed) {
       return;
     }
 
@@ -147,15 +173,17 @@
     state.dragStarted = true;
     clearLongPressTimer();
     document.body.classList.add("dragging");
-    window.deskpet.pointerDown({ x: state.startX, y: state.startY });
+    beginNativeDrag();
   }
 
   function handlePointerUp(event) {
     const wasDrag = state.dragStarted;
     const wasLongPress = state.longPressed;
+    const shouldEndNativeDrag = state.nativeDragStarted || wasDrag || wasLongPress;
     state.pointerDown = false;
     state.pointerId = undefined;
     state.dragStarted = false;
+    state.nativeDragStarted = false;
     state.longPressed = false;
     clearLongPressTimer();
     document.body.classList.remove("dragging");
@@ -166,10 +194,8 @@
       // Pointer capture can be gone after the native window moves.
     }
 
-    if (wasDrag) {
+    if (shouldEndNativeDrag) {
       window.deskpet.pointerUp();
-    } else if (wasLongPress) {
-      return;
     } else {
       window.deskpet.click();
     }
@@ -182,10 +208,15 @@
     if (Number.isFinite(nextState.visualRevision) && nextState.visualRevision !== state.visualRevision) {
       state.visualRevision = nextState.visualRevision;
       state.action = nextState.action || state.action;
-      setAction(state.action, true);
-    } else if (nextState.action && nextState.action !== state.action) {
+      state.visualVariant = nextState.visualVariant || state.visualVariant;
+      setAction(state.action, state.visualVariant, true);
+    } else if (
+      nextState.action
+      && (nextState.action !== state.action || nextState.visualVariant !== state.visualVariant)
+    ) {
       state.action = nextState.action;
-      setAction(nextState.action);
+      state.visualVariant = nextState.visualVariant || state.visualVariant;
+      setAction(nextState.action, state.visualVariant);
     }
     if (nextState.bubble) {
       updateBubble(nextState.bubble);
@@ -217,7 +248,7 @@
   stage.style.height = `${stageHeight}px`;
   pet.style.width = `${stageWidth}px`;
   pet.style.height = `${stageHeight}px`;
-  setAction(state.action);
+  setAction(state.action, state.visualVariant);
 
   if (pet.complete) {
     reportReadyOnce();

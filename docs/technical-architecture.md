@@ -43,6 +43,10 @@ Responsibilities:
 - write/read a PID file to avoid duplicate windows;
 - send startup config through environment variables;
 - write project state to `.deskpet/state.json`.
+- support bridge modes:
+  - `vscode`: collect editor state and write the state file;
+  - `external`: launch the pet and watch a state file owned by Codex/Claude Code adapters;
+  - `desktop`: launch the pet without a project state file.
 
 Current bridge signals:
 
@@ -119,6 +123,7 @@ Responsibilities:
 - load a pet manifest;
 - load transparent PNG and animated WebP assets;
 - render the current action;
+- choose `still` PNG or `animated` WebP from the main-process `visualVariant`;
 - handle pointer down/move/up;
 - handle right-click and long-press gestures;
 - animate local effects;
@@ -139,6 +144,7 @@ Purpose:
 - map each action to a PNG fallback and/or animated WebP;
 - group actions into idle, interaction, task-in-progress, and task-completed pools;
 - map logic states to action pools;
+- define pose requirements, enter transitions, still-frame holds, exit transitions, and settle actions;
 - keep animation behavior data-driven.
 
 ### Runtime Config
@@ -267,8 +273,23 @@ Project logic states:
 - `waiting_approval`
 - `warning`
 - `error`
+- `bug_hunt`
 - `completed`
 - `interrupted`
+
+Animation mode chain for most non-looping WebP actions:
+
+```text
+optional enterAction -> (animated action once -> still hold) x repeatCount/repeatMin-repeatMax -> optional exitAction -> settleAction/base pose
+```
+
+Actions may also declare `cycleNextAction`. The current `bug_hunt` mapping uses it to alternate `caterpillar` and `poke_bug` while the project/manual state is still active.
+
+Drag is handled as a special interaction chain:
+
+```text
+sit_lift_up or lie_lift_up -> sway loop while dragging -> put_down -> sit
+```
 
 Future target interaction states:
 
@@ -285,7 +306,7 @@ The Electron main process owns desktop physics. The renderer owns visual animati
 Start with the current `puppy/` folder:
 
 - PNG stills are fallback and poster images.
-- WebP files are preferred for looping animations.
+- WebP files are preferred for finite action units, transitions, and explicit interaction loops.
 - New actions should be added to `puppy/manifest.json`.
 
 Later, when packaging:

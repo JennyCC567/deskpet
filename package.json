@@ -15,6 +15,7 @@
     "onCommand:deskpet.restart",
     "onCommand:deskpet.larger",
     "onCommand:deskpet.smaller",
+    "onCommand:deskpet.selectBridgeMode",
     "onStartupFinished"
   ],
   "contributes": {
@@ -38,6 +39,10 @@
       {
         "command": "deskpet.smaller",
         "title": "Deskpet: Smaller"
+      },
+      {
+        "command": "deskpet.selectBridgeMode",
+        "title": "Deskpet: Select Bridge Mode"
       }
     ],
     "configuration": {
@@ -78,6 +83,21 @@
           "type": "boolean",
           "default": true,
           "description": "Keep the status bubble visible until the user toggles it."
+        },
+        "deskpet.bridgeMode": {
+          "type": "string",
+          "enum": [
+            "vscode",
+            "external",
+            "desktop"
+          ],
+          "default": "vscode",
+          "description": "Choose where project state comes from: VS Code APIs, an external state-file adapter, or no project bridge."
+        },
+        "deskpet.externalStateFile": {
+          "type": "string",
+          "default": "",
+          "description": "Optional state file path for external Codex or Claude Code adapters when bridgeMode is external. Relative paths resolve from the workspace root."
         }
       }
     }

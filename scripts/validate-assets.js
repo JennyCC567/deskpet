@@ -35,6 +35,18 @@ if (missing.length > 0) {
 }
 
 const invalidRefs = [];
+
+function validateActionReference(scope, actionName) {
+  if (!actionName || typeof actionName !== "string") {
+    invalidRefs.push(`${scope} must reference an action name`);
+    return;
+  }
+
+  if (!manifest.actions[actionName]) {
+    invalidRefs.push(`${scope}: ${actionName}`);
+  }
+}
+
 for (const [groupName, actionNames] of Object.entries(manifest.animationGroups || {})) {
   if (!Array.isArray(actionNames)) {
     invalidRefs.push(`animationGroups.${groupName} must be an array`);
@@ -42,9 +54,7 @@ for (const [groupName, actionNames] of Object.entries(manifest.animationGroups |
   }
 
   for (const actionName of actionNames) {
-    if (!manifest.actions[actionName]) {
-      invalidRefs.push(`animationGroups.${groupName}: ${actionName}`);
-    }
+    validateActionReference(`animationGroups.${groupName}`, actionName);
   }
 }
 
@@ -55,9 +65,7 @@ for (const [stateName, actionNames] of Object.entries(manifest.stateMappings || 
   }
 
   for (const actionName of actionNames) {
-    if (!manifest.actions[actionName]) {
-      invalidRefs.push(`stateMappings.${stateName}: ${actionName}`);
-    }
+    validateActionReference(`stateMappings.${stateName}`, actionName);
   }
 }
 
@@ -68,17 +76,13 @@ for (const [interactionName, actionNames] of Object.entries(manifest.interaction
   }
 
   for (const actionName of actionNames) {
-    if (!manifest.actions[actionName]) {
-      invalidRefs.push(`interactionMappings.${interactionName}: ${actionName}`);
-    }
+    validateActionReference(`interactionMappings.${interactionName}`, actionName);
   }
 }
 
 for (const [fromPose, transitions] of Object.entries(manifest.poseTransitions || {})) {
   for (const [toPose, actionName] of Object.entries(transitions || {})) {
-    if (!manifest.actions[actionName]) {
-      invalidRefs.push(`poseTransitions.${fromPose}.${toPose}: ${actionName}`);
-    }
+    validateActionReference(`poseTransitions.${fromPose}.${toPose}`, actionName);
   }
 }
 
@@ -89,19 +93,47 @@ for (const [poseName, actionNames] of Object.entries(manifest.clickMappings || {
   }
 
   for (const actionName of actionNames) {
-    if (!manifest.actions[actionName]) {
-      invalidRefs.push(`clickMappings.${poseName}: ${actionName}`);
-    }
+    validateActionReference(`clickMappings.${poseName}`, actionName);
   }
 }
 
-for (const [stepName, actionName] of Object.entries(manifest.dragSequence || {})) {
+for (const [stepName, value] of Object.entries(manifest.dragSequence || {})) {
   if (stepName === "returnPose") {
     continue;
   }
 
-  if (!manifest.actions[actionName]) {
-    invalidRefs.push(`dragSequence.${stepName}: ${actionName}`);
+  if (typeof value === "string") {
+    validateActionReference(`dragSequence.${stepName}`, value);
+  } else if (value && typeof value === "object") {
+    for (const [key, actionName] of Object.entries(value)) {
+      validateActionReference(`dragSequence.${stepName}.${key}`, actionName);
+    }
+  } else {
+    invalidRefs.push(`dragSequence.${stepName} must be an action name or action map`);
+  }
+}
+
+for (const [actionName, action] of Object.entries(manifest.actions)) {
+  if (action.enterAction) {
+    validateActionReference(`actions.${actionName}.enterAction`, action.enterAction);
+  }
+
+  if (action.exitAction) {
+    validateActionReference(`actions.${actionName}.exitAction`, action.exitAction);
+  }
+
+  if (action.cycleNextAction) {
+    validateActionReference(`actions.${actionName}.cycleNextAction`, action.cycleNextAction);
+  }
+
+  if (action.settleAction) {
+    validateActionReference(`actions.${actionName}.settleAction`, action.settleAction);
+  }
+
+  for (const key of ["repeatCount", "repeatMin", "repeatMax"]) {
+    if (action[key] !== undefined && (!Number.isFinite(action[key]) || action[key] < 1)) {
+      invalidRefs.push(`actions.${actionName}.${key} must be a number >= 1`);
+    }
   }
 }
 

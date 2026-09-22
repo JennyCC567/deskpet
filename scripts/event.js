@@ -17,6 +17,10 @@ const STATE_ALIASES = {
   warning: "warning",
   error: "error",
   failed: "error",
+  bug: "bug_hunt",
+  bug_hunt: "bug_hunt",
+  bughunt: "bug_hunt",
+  caterpillar: "bug_hunt",
   completed: "completed",
   complete: "completed",
   success: "completed",
@@ -27,7 +31,7 @@ const STATE_ALIASES = {
 
 function usage() {
   console.log("Usage: npm run event -- <state> [message] [--task name] [--command cmd] [--exit-code code]");
-  console.log("States: idle, editing, in_progress, thinking, running_command, editing_files, waiting_approval, warning, error, completed, interrupted");
+  console.log("States: idle, editing, in_progress, thinking, running_command, editing_files, waiting_approval, warning, error, bug_hunt, completed, interrupted");
 }
 
 function normalizeState(input) {
@@ -74,7 +78,7 @@ function stateToTaskStatus(state) {
   if (state === "error") {
     return "failed";
   }
-  if (state === "in_progress" || state === "thinking" || state === "editing_files") {
+  if (state === "in_progress" || state === "thinking" || state === "editing_files" || state === "bug_hunt") {
     return "running";
   }
 
@@ -134,7 +138,7 @@ if (deskpetState !== "running_command" && existing.terminal?.status === "running
   };
 }
 
-if (!["in_progress", "thinking", "editing_files"].includes(deskpetState) && existing.task?.status === "running") {
+if (!["in_progress", "thinking", "editing_files", "bug_hunt"].includes(deskpetState) && existing.task?.status === "running") {
   next.task = {
     ...existing.task,
     status: deskpetState === "error" ? "failed" : "completed",

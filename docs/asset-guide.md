@@ -5,10 +5,12 @@
 Deskpet can use:
 
 - transparent PNG for still poses, fallbacks, and precise single-frame states;
-- transparent animated WebP for looping actions such as idle, reading, music, sleeping, or celebration;
+- transparent animated WebP for one-shot actions, transitions, reading, celebrations, and explicit loops;
 - future PNG sequences or sprite sheets when frame-level control is needed.
 
 The current puppy PNG files are `1000 x 1000` RGBA images, which is a good source size. The renderer can scale them down for desktop display.
+
+Important runtime rule: most animated WebP files are played as finite action units, not as infinite loops. Deskpet plays the optional `enterAction`, then repeats `animated WebP once -> PNG still hold` for the action's `repeatMin`/`repeatMax` range, then plays the optional `exitAction` and settles back to a base pose. Use `"loop": true` only for visuals that should keep moving until direct input ends, such as drag `sway`.
 
 ## Current Asset Folder
 
@@ -17,10 +19,21 @@ Current folder:
 ```text
 puppy/
   manifest.json
-  pet_01_flowers.png
-  pet_01_flowers.webp
-  pet_02_cycling.png
-  pet_02_cycling.webp
+  pet_11_ground.png
+  pet_17_lie.png
+  click_12_wave.webp
+  click_13_petted.webp
+  debug_10_caterpillar.webp
+  debug_10_poke_bug.webp
+  finish_01_flowers.png
+  finish_01_flowers.webp
+  finish_08_firework.png
+  finish_08_firework.webp
+  move_sit_to_lift_1s.webp
+  move_lie_to_lift_1s.webp
+  move_16_sway.webp
+  working_02_cycling.png
+  working_02_cycling.webp
   ...
 ```
 
@@ -37,26 +50,57 @@ Each pet has a manifest:
 {
   "id": "puppy",
   "displayName": "Puppy",
-  "version": 1,
+  "version": 4,
   "defaultScale": 0.32,
+  "defaultAction": "sit",
+  "defaultPose": "sit",
   "animationGroups": {
-    "idle": ["music", "lying"],
-    "interaction": ["idle_flowers", "firework"],
-    "taskInProgress": ["cycling", "reading"],
-    "taskCompleted": ["idle_flowers", "firework"]
+    "baseIdle": ["sit", "lie"],
+    "idle": ["sit", "lie", "music", "lying", "accordion", "autumn"],
+    "ambientIdle": ["music", "lying", "accordion", "autumn"],
+    "interaction": ["wave", "petted"],
+    "drag": ["sit_lift_up", "lie_lift_up", "sway", "put_down"],
+    "taskInProgress": ["cycling", "reading", "reading_alt"],
+    "taskCompleted": ["flowers", "firework"],
+    "bug": ["caterpillar", "poke_bug"]
+  },
+  "poseTransitions": {
+    "sit": { "lie": "sit_to_lie" },
+    "lie": { "sit": "lie_to_sit" }
+  },
+  "clickMappings": {
+    "sit": ["wave"],
+    "lie": ["petted"],
+    "ambient": ["sit", "lie", "music", "lying", "accordion", "autumn"]
+  },
+  "dragSequence": {
+    "liftByPose": {
+      "sit": "sit_lift_up",
+      "lie": "lie_lift_up"
+    },
+    "dragging": "sway",
+    "drop": "put_down",
+    "returnPose": "sit"
   },
   "stateMappings": {
-    "idle": ["music", "lying"],
-    "in_progress": ["cycling", "reading"],
-    "completed": ["idle_flowers", "firework"]
+    "idle": ["sit", "lie"],
+    "in_progress": ["cycling", "reading", "reading_alt"],
+    "bug_hunt": ["caterpillar"],
+    "completed": ["flowers", "firework"]
   },
   "actions": {
-    "idle": {
-      "label": "Idle",
-      "still": "pet_01_flowers.png",
-      "animated": "pet_01_flowers.webp",
-      "loop": true,
-      "weight": 4
+    "flowers": {
+      "label": "Flowers",
+      "still": "finish_01_flowers.png",
+      "animated": "finish_01_flowers.webp",
+      "loop": false,
+      "durationMs": 4074,
+      "holdMs": 2600,
+      "repeatMin": 2,
+      "repeatMax": 5,
+      "exitAction": "flowers_to_sit",
+      "settleAction": "sit",
+      "weight": 3
     }
   }
 }
@@ -74,6 +118,16 @@ Field meaning:
 - `still`: PNG fallback.
 - `animated`: WebP animation.
 - `loop`: whether the action can loop.
+- `durationMs`: how long to show a one-shot WebP before moving on.
+- `holdMs`: how long to show the PNG still after a one-shot WebP.
+- `repeatCount`: fixed number of `animated -> still` units before exiting.
+- `repeatMin` / `repeatMax`: random inclusive range for repeated `animated -> still` units. Use this for main idle, working, and completion actions that should repeat 2-5 times.
+- `fromPose`: required starting base pose, such as `sit` or `lie`.
+- `nextPose`: pose after the action completes.
+- `enterAction`: optional transition action before the main action.
+- `exitAction`: optional transition action after the main action and still hold.
+- `settleAction`: base action to display after the action chain finishes.
+- `cycleNextAction`: optional next action to launch when the current logic state is still active. This is used by `bug_hunt` to alternate `caterpillar` and `poke_bug`.
 - `weight`: relative chance in random idle rotation.
 
 ## Current Puppy Groups
@@ -82,11 +136,12 @@ Current groups in `puppy/manifest.json`:
 
 - Base idle: `sit`, `lie`.
 - Idle transitions: `sit_to_lie`, `lie_to_sit`.
-- Ambient idle: `music`, `accordion`, `autumn`.
+- Ambient idle: `music`, `lying`, `accordion`, `autumn`.
 - Click interactions: sitting uses `wave`; lying uses `petted`; other idle actions can randomize the idle state.
-- Drag sequence: `lift_up` for 1 second, `sway` loops while dragging, `put_down` for 1 second after release.
+- Drag sequence: `sit_lift_up` or `lie_lift_up` first, `sway` loops while dragging, `put_down` plays after release and returns to `sit`.
 - Task in progress: `cycling`, `reading`, `reading_alt`.
-- Task completed: `idle_flowers`, `firework`.
+- Task completed: `flowers` or `firework`.
+- Special bug-hunt state: `caterpillar` alternates with `poke_bug` through `cycleNextAction`.
 
 When you add new actions, choose the group by product meaning:
 
@@ -117,6 +172,59 @@ For one-shot transitions or reactions, add `durationMs` and `nextPose`:
     "durationMs": 1000,
     "fromPose": "sit",
     "nextPose": "lie"
+  }
+}
+```
+
+For ambient actions that need an entry and exit transition, keep the main action declarative:
+
+```json
+{
+  "accordion": {
+    "still": "pet_06_accordion.png",
+    "animated": "pet_06_accordion.webp",
+    "loop": false,
+    "durationMs": 4074,
+    "holdMs": 2200,
+    "fromPose": "sit",
+    "enterAction": "sit_to_accordion",
+    "exitAction": "accordion_to_sit",
+    "settleAction": "sit"
+  }
+}
+```
+
+For main actions that should repeat several complete units before exiting, set a repeat range:
+
+```json
+{
+  "reading": {
+    "still": "working_03_reading.png",
+    "animated": "working_03_reading.webp",
+    "loop": false,
+    "durationMs": 4074,
+    "holdMs": 1600,
+    "repeatMin": 2,
+    "repeatMax": 5
+  }
+}
+```
+
+For two non-looping WebP actions that should alternate while a state remains active, point each one at the other:
+
+```json
+{
+  "caterpillar": {
+    "animated": "debug_10_caterpillar.webp",
+    "loop": false,
+    "durationMs": 4074,
+    "cycleNextAction": "poke_bug"
+  },
+  "poke_bug": {
+    "animated": "debug_10_poke_bug.webp",
+    "loop": false,
+    "durationMs": 4074,
+    "cycleNextAction": "caterpillar"
   }
 }
 ```
@@ -160,8 +268,8 @@ Suggested future caterpillar mapping:
 3. Prefer matching PNG/WebP pairs:
 
 ```text
-pet_10_caterpillar_spawn.png
-pet_10_caterpillar_spawn.webp
+debug_10_caterpillar_spawn.png
+debug_10_caterpillar_spawn.webp
 ```
 
 4. Add an entry to `puppy/manifest.json`:
@@ -169,8 +277,8 @@ pet_10_caterpillar_spawn.webp
 ```json
 {
   "label": "Caterpillar Spawn",
-  "still": "pet_10_caterpillar_spawn.png",
-  "animated": "pet_10_caterpillar_spawn.webp",
+  "still": "debug_10_caterpillar_spawn.png",
+  "animated": "debug_10_caterpillar_spawn.webp",
   "loop": false,
   "weight": 0
 }
@@ -186,7 +294,7 @@ node -e "JSON.parse(require('fs').readFileSync('puppy/manifest.json', 'utf8')); 
 
 Animated WebP is ideal for:
 
-- ambient loops;
+- finite ambient actions;
 - idle variants;
 - mood reactions;
 - simple celebration;

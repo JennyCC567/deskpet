@@ -43,6 +43,7 @@ const LOGIC_TO_GROUP = {
   waiting_approval: "taskInProgress",
   warning: "taskInProgress",
   error: "taskInProgress",
+  bug_hunt: "bug",
   completed: "taskCompleted",
   interrupted: "idle"
 };
@@ -54,7 +55,8 @@ const ACTIVE_PROJECT_STATES = new Set([
   "editing_files",
   "waiting_approval",
   "warning",
-  "error"
+  "error",
+  "bug_hunt"
 ]);
 const TRANSIENT_PROJECT_STATES = new Set(["completed", "interrupted"]);
 
@@ -80,6 +82,7 @@ const state = {
   direction: 1,
   mode: "idle",
   action: manifest.defaultAction || "music",
+  visualVariant: "still",
   pose: manifest.defaultPose || "sit",
   visualRevision: 0,
   timerMs: 2500,
@@ -97,6 +100,10 @@ const state = {
   projectStateSeenAt: 0,
   projectEventKey: "",
   projectHoldUntil: 0,
+  manualLogicState: undefined,
+  pendingAction: undefined,
+  pendingAfterHold: undefined,
+  activeActionPlayback: undefined,
   statusText: projectStateFile ? "Deskpet is watching this workspace." : "Deskpet is running in desktop mode.",
   bubbleVisible: config.statusBubble !== false && config.statusBubblePinned !== false,
   bubblePinned: config.statusBubblePinned !== false,
@@ -216,6 +223,7 @@ function sendState(extra = {}) {
     mode: state.mode,
     logicState: state.logicState,
     action: state.action,
+    visualVariant: state.visualVariant,
     pose: state.pose,
     visualRevision: state.visualRevision,
     direction: state.direction,
@@ -287,6 +295,77 @@ function actionNextPose(actionName) {
   return resolveAction(actionName)?.nextPose || actionPose(actionName);
 }
 
+function actionFromPose(actionName) {
+  return resolveAction(actionName)?.fromPose;
+}
+
+function actionSettleAction(actionName) {
+  return resolveAction(actionName)?.settleAction;
+}
+
+function actionEnterAction(actionName) {
+  return resolveAction(actionName)?.enterAction;
+}
+
+function actionExitAction(actionName) {
+  return resolveAction(actionName)?.exitAction;
+}
+
+function actionCycleNextAction(actionName) {
+  return resolveAction(actionName)?.cycleNextAction;
+}
+
+function actionHoldDuration(actionName, fallbackMs = 0) {
+  const duration = resolveAction(actionName)?.holdMs;
+  return Number.isFinite(duration) && duration >= 0 ? duration : fallbackMs;
+}
+
+function actionIsLooping(actionName) {
+  return resolveAction(actionName)?.loop !== false;
+}
+
+function actionRepeatCount(actionName, options = {}) {
+  const action = resolveAction(actionName) || {};
+  const min = Number.isFinite(options.repeatMin)
+    ? options.repeatMin
+    : Number.isFinite(action.repeatMin)
+      ? action.repeatMin
+      : Number.isFinite(action.repeatCount)
+        ? action.repeatCount
+        : 1;
+  const max = Number.isFinite(options.repeatMax)
+    ? options.repeatMax
+    : Number.isFinite(action.repeatMax)
+      ? action.repeatMax
+      : min;
+  const low = Math.max(1, Math.floor(Math.min(min, max)));
+  const high = Math.max(low, Math.floor(Math.max(min, max)));
+
+  return Math.floor(randomBetween(low, high + 1));
+}
+
+function visualVariantForAction(actionName, preferredVariant = "animated") {
+  const action = resolveAction(actionName);
+  if (!action) {
+    return "still";
+  }
+
+  if (preferredVariant === "still" || !action.animated) {
+    return "still";
+  }
+
+  return "animated";
+}
+
+function baseActionForPose(pose) {
+  const baseEntries = actionEntriesFromNames(manifest.animationGroups?.baseIdle);
+  return baseEntries.find(([, item]) => item.pose === pose)?.[0]
+    || baseEntries.find(([, item]) => item.pose)?.[0]
+    || Object.entries(manifest.actions || {}).find(([, item]) => item.pose === pose)?.[0]
+    || manifest.defaultAction
+    || state.action;
+}
+
 function entriesForGroup(groupName) {
   return actionEntriesFromNames(manifest.animationGroups?.[groupName]);
 }
@@ -347,32 +426,215 @@ function logicTimerMs(logicState) {
   return randomBetween(config.idleMinMs, config.idleMaxMs);
 }
 
-function setVisual(mode, action, timerMs) {
+function setVisual(mode, action, timerMs, options = {}) {
   state.mode = mode;
   state.action = action || state.action;
+  state.visualVariant = visualVariantForAction(state.action, options.visualVariant || "animated");
   state.visualRevision += 1;
   const nextPose = actionNextPose(state.action);
-  if (nextPose) {
+  if (nextPose && options.updatePose !== false) {
     state.pose = nextPose;
   }
   state.timerMs = timerMs;
   sendState();
 }
 
+function clearPendingAction() {
+  state.pendingAction = undefined;
+}
+
+function clearPendingAfterHold() {
+  state.pendingAfterHold = undefined;
+}
+
+function clearActiveActionPlayback() {
+  state.activeActionPlayback = undefined;
+}
+
+function replayActiveAction(actionPlayback) {
+  if (!actionPlayback || !resolveAction(actionPlayback.action)) {
+    chooseNextMode();
+    return;
+  }
+
+  state.activeActionPlayback = actionPlayback;
+  setVisual(actionPlayback.mode, actionPlayback.action, actionPlayback.playbackMs, {
+    visualVariant: "animated"
+  });
+}
+
+function beginTimedAction(mode, action, timerMs = actionDuration(action, config.actionMinMs), options = {}) {
+  const actionDef = resolveAction(action);
+  if (!actionDef) {
+    chooseNextMode();
+    return;
+  }
+
+  clearPendingAfterHold();
+  clearActiveActionPlayback();
+  const fromPose = options.allowPoseTransition === false ? undefined : actionFromPose(action);
+  if (fromPose && fromPose !== state.pose) {
+    const transition = transitionAction(state.pose, fromPose);
+    if (transition && resolveAction(transition)) {
+      state.pendingAction = {
+        mode,
+        action,
+        timerMs,
+        options: {
+          ...options,
+          allowPoseTransition: false
+        }
+      };
+      beginPoseTransition(fromPose);
+      return;
+    }
+
+    state.pose = fromPose;
+  }
+
+  const enterAction = options.allowEnterTransition === false ? undefined : actionEnterAction(action);
+  if (enterAction && resolveAction(enterAction)) {
+    state.pendingAction = {
+      mode,
+      action,
+      timerMs,
+      options: {
+        ...options,
+        allowPoseTransition: false,
+        allowEnterTransition: false
+      }
+    };
+    setVisual("action_enter", enterAction, actionDuration(enterAction, 1000), { visualVariant: "animated" });
+    return;
+  }
+
+  clearPendingAction();
+  const playbackMs = actionIsLooping(action)
+    ? timerMs
+    : actionDuration(action, timerMs);
+  const repeatCount = actionIsLooping(action) ? 1 : actionRepeatCount(action, options);
+  state.activeActionPlayback = actionIsLooping(action)
+    ? undefined
+    : {
+      mode,
+      action,
+      playbackMs,
+      remainingPlays: Math.max(0, repeatCount - 1)
+    };
+  setVisual(mode, action, playbackMs, {
+    ...options,
+    visualVariant: options.visualVariant || "animated"
+  });
+}
+
+function settleAfterAction() {
+  clearPendingAction();
+  const completedAction = state.action;
+  const actionDef = resolveAction(completedAction);
+  const exitAction = actionExitAction(completedAction);
+  const settleAction = actionSettleAction(completedAction);
+  const cycleNextAction = actionCycleNextAction(completedAction);
+  const nextPose = actionNextPose(completedAction);
+  const holdMs = actionHoldDuration(completedAction, 0);
+  const actionPlayback = state.activeActionPlayback?.action === completedAction
+    ? { ...state.activeActionPlayback }
+    : undefined;
+
+  if (nextPose) {
+    state.pose = nextPose;
+  }
+
+  if (holdMs > 0 && actionDef?.still && state.visualVariant !== "still") {
+    state.pendingAfterHold = {
+      exitAction,
+      settleAction,
+      nextPose,
+      actionPlayback
+    };
+    setVisual("action_hold", completedAction, holdMs, {
+      visualVariant: "still",
+      updatePose: false
+    });
+    return;
+  }
+
+  if (actionPlayback?.remainingPlays > 0) {
+    replayActiveAction({
+      ...actionPlayback,
+      remainingPlays: actionPlayback.remainingPlays - 1
+    });
+    return;
+  }
+
+  clearActiveActionPlayback();
+  if (cycleNextAction && resolveAction(cycleNextAction) && shouldUseProjectVisual(state.logicState)) {
+    beginTimedAction(state.mode, cycleNextAction, logicTimerMs(state.logicState));
+    return;
+  }
+
+  if (exitAction && resolveAction(exitAction)) {
+    setVisual("action_exit", exitAction, actionDuration(exitAction, 1000), { visualVariant: "animated" });
+    return;
+  }
+
+  if (settleAction && resolveAction(settleAction)) {
+    beginPoseIdle(actionPose(settleAction) || nextPose || state.pose);
+    return;
+  }
+
+  chooseNextMode();
+}
+
+function finishActionHold() {
+  const afterHold = state.pendingAfterHold;
+  clearPendingAfterHold();
+
+  if (afterHold?.nextPose) {
+    state.pose = afterHold.nextPose;
+  }
+
+  if (afterHold?.actionPlayback?.remainingPlays > 0) {
+    replayActiveAction({
+      ...afterHold.actionPlayback,
+      remainingPlays: afterHold.actionPlayback.remainingPlays - 1
+    });
+    return;
+  }
+
+  clearActiveActionPlayback();
+  if (afterHold?.actionPlayback?.action) {
+    const cycleNextAction = actionCycleNextAction(afterHold.actionPlayback.action);
+    if (cycleNextAction && resolveAction(cycleNextAction) && shouldUseProjectVisual(state.logicState)) {
+      beginTimedAction(afterHold.actionPlayback.mode, cycleNextAction, logicTimerMs(state.logicState));
+      return;
+    }
+  }
+
+  if (afterHold?.exitAction && resolveAction(afterHold.exitAction)) {
+    setVisual("action_exit", afterHold.exitAction, actionDuration(afterHold.exitAction, 1000), { visualVariant: "animated" });
+    return;
+  }
+
+  if (afterHold?.settleAction && resolveAction(afterHold.settleAction)) {
+    beginPoseIdle(actionPose(afterHold.settleAction) || afterHold.nextPose || state.pose);
+    return;
+  }
+
+  chooseNextMode();
+}
+
 function beginMappedState(logicState, timerMs = logicTimerMs(logicState)) {
   const action = weightedAction(entriesForLogic(logicState));
-  setVisual(logicState, action, timerMs);
+  beginTimedAction(logicState, action, timerMs);
 }
 
 function beginPoseIdle(pose = state.pose, timerMs = randomBetween(config.baseIdleMinMs, config.baseIdleMaxMs)) {
-  const baseEntries = actionEntriesFromNames(manifest.animationGroups?.baseIdle);
-  const action = baseEntries.find(([, item]) => item.pose === pose)?.[0]
-    || baseEntries.find(([, item]) => item.pose)?.[0]
-    || Object.entries(manifest.actions || {}).find(([, item]) => item.pose === pose)?.[0]
-    || manifest.defaultAction
-    || state.action;
+  clearPendingAction();
+  clearPendingAfterHold();
+  clearActiveActionPlayback();
+  const action = baseActionForPose(pose);
   state.pose = actionPose(action) || pose || state.pose;
-  setVisual("idle", action, timerMs);
+  setVisual("idle", action, timerMs, { visualVariant: "still" });
 }
 
 function transitionAction(fromPose, toPose) {
@@ -380,6 +642,7 @@ function transitionAction(fromPose, toPose) {
 }
 
 function beginPoseTransition(toPose) {
+  clearActiveActionPlayback();
   if (!toPose || toPose === state.pose) {
     beginPoseIdle(state.pose);
     return;
@@ -391,7 +654,7 @@ function beginPoseTransition(toPose) {
     return;
   }
 
-  setVisual("pose_transition", action, actionDuration(action, 1000));
+  setVisual("pose_transition", action, actionDuration(action, 1000), { visualVariant: "animated" });
 }
 
 function chooseNextBaseIdle() {
@@ -415,24 +678,26 @@ function chooseNextBaseIdle() {
 }
 
 function beginIdle() {
-  state.logicState = state.projectState ? state.logicState : "offline";
+  if (!state.manualLogicState) {
+    state.logicState = state.projectState ? state.logicState : "offline";
+  }
   chooseNextBaseIdle();
 }
 
 function beginAction() {
   const action = weightedAction(entriesForGroup("ambientIdle"));
-  setVisual("action", action, randomBetween(config.actionMinMs, config.actionMaxMs));
+  beginTimedAction("action", action, randomBetween(config.actionMinMs, config.actionMaxMs));
 }
 
 function beginWander() {
   const action = weightedAction(entriesForGroup("ambientIdle"));
   state.direction = Math.random() < 0.5 ? -1 : 1;
-  setVisual("wander", action, randomBetween(config.wanderMinMs, config.wanderMaxMs));
+  beginTimedAction("wander", action, randomBetween(config.wanderMinMs, config.wanderMaxMs));
 }
 
 function beginInteraction(interactionName, timerMs = 2600) {
   const action = weightedAction(entriesForInteraction(interactionName));
-  setVisual(`interaction:${interactionName}`, action, timerMs);
+  beginTimedAction(`interaction:${interactionName}`, action, timerMs);
 }
 
 function beginClickReaction() {
@@ -440,7 +705,7 @@ function beginClickReaction() {
   const action = weightedAction(actionEntriesFromNames(mappings[state.pose]));
 
   if (action && resolveAction(action)) {
-    setVisual("click_reaction", action, actionDuration(action, 1800));
+    beginTimedAction("click_reaction", action, actionDuration(action, 1800));
     return;
   }
 
@@ -458,36 +723,52 @@ function beginAmbientClickSwitch() {
     return;
   }
 
-  setVisual("action", action, actionDuration(action, randomBetween(config.actionMinMs, config.actionMaxMs)));
+  beginTimedAction("action", action, actionDuration(action, randomBetween(config.actionMinMs, config.actionMaxMs)));
 }
 
 function beginDragLift() {
-  const action = manifest.dragSequence?.lift || "lift_up";
+  const action = manifest.dragSequence?.liftByPose?.[state.pose]
+    || manifest.dragSequence?.lift
+    || "sit_lift_up";
   state.dragPhase = "lift";
   state.dragMotionEnabled = false;
-  setVisual("drag_lift", action, actionDuration(action, 1000));
+  beginTimedAction("drag_lift", action, actionDuration(action, 1000), { allowPoseTransition: false });
 }
 
 function beginDragSway() {
+  clearPendingAction();
+  clearPendingAfterHold();
+  clearActiveActionPlayback();
   const action = manifest.dragSequence?.dragging || "sway";
   state.dragPhase = "sway";
   state.dragMotionEnabled = true;
-  setVisual("drag_sway", action, 0);
+  setVisual("drag_sway", action, 0, { visualVariant: "animated", updatePose: false });
 }
 
 function beginDragDrop() {
   const action = manifest.dragSequence?.drop || "put_down";
   state.dragPhase = "drop";
   state.dragMotionEnabled = false;
-  setVisual("drag_drop", action, actionDuration(action, 1000));
+  beginTimedAction("drag_drop", action, actionDuration(action, 1000), { allowPoseTransition: false });
 }
 
 function beginSleep() {
+  clearPendingAction();
+  clearPendingAfterHold();
+  clearActiveActionPlayback();
   const action = weightedAction(entriesForInteraction("sleep"));
-  setVisual("sleep", action, randomBetween(7000, 15000));
+  setVisual("sleep", action, randomBetween(7000, 15000), { visualVariant: "still" });
 }
 
 function shouldUseProjectVisual(logicState) {
+  if (state.manualLogicState === logicState) {
+    if (TRANSIENT_PROJECT_STATES.has(logicState)) {
+      return Date.now() <= state.projectHoldUntil;
+    }
+
+    return ACTIVE_PROJECT_STATES.has(logicState);
+  }
+
   if (!state.projectState || Date.now() - state.projectStateSeenAt > config.projectFreshMs) {
     return false;
   }
@@ -555,6 +836,10 @@ function normalizeLogicState(value) {
     tool_started: "running_command",
     pre_tool_use: "running_command",
     post_tool_use: "in_progress",
+    bug: "bug_hunt",
+    bughunt: "bug_hunt",
+    caterpillar: "bug_hunt",
+    target_spawn: "bug_hunt",
     patch_started: "editing_files",
     file_changed: "editing_files",
     file_saved: "editing",
@@ -735,6 +1020,9 @@ function formatProjectStatus(projectState, logicState) {
     }
     return "Task needs attention.";
   }
+  if (logicState === "bug_hunt") {
+    return "Caterpillar spotted.";
+  }
   if (logicState === "warning") {
     return `${plural(warnings, "warning")} in workspace.`;
   }
@@ -775,6 +1063,7 @@ function applyProjectState(projectState) {
   const logicChanged = nextLogic !== state.logicState;
   const eventChanged = nextEventKey !== state.projectEventKey;
 
+  state.manualLogicState = undefined;
   state.projectState = projectState;
   state.projectStateSeenAt = Date.now();
   state.logicState = nextLogic;
@@ -834,6 +1123,7 @@ function toggleBubblePin() {
 
 function setManualLogic(logicState) {
   state.sleeping = false;
+  state.manualLogicState = logicState;
   state.logicState = logicState;
   state.statusText = formatProjectStatus(state.projectState, logicState);
   syncBubbleVisibility(logicState, true);
@@ -873,7 +1163,7 @@ function tick() {
   if (state.mode === "drag_drop") {
     state.timerMs -= dt * 1000;
     if (state.timerMs <= 0) {
-      beginPoseIdle(manifest.dragSequence?.returnPose || state.pose || manifest.defaultPose);
+      settleAfterAction();
     }
     moveWindow();
     return;
@@ -910,8 +1200,28 @@ function tick() {
 
   state.timerMs -= dt * 1000;
   if (state.timerMs <= 0) {
-    if (state.mode === "pose_transition" || state.mode === "click_reaction") {
+    if (state.mode === "pose_transition" || state.mode === "action_enter") {
+      const pending = state.pendingAction;
+      if (pending) {
+        state.pendingAction = undefined;
+        beginTimedAction(pending.mode, pending.action, pending.timerMs, pending.options);
+        moveWindow();
+        return;
+      }
+
       beginPoseIdle(state.pose);
+      moveWindow();
+      return;
+    }
+
+    if (state.mode === "action_hold") {
+      finishActionHold();
+      moveWindow();
+      return;
+    }
+
+    if (resolveAction(state.action)?.loop === false) {
+      settleAfterAction();
       moveWindow();
       return;
     }
@@ -1004,9 +1314,14 @@ function buildPetMenuTemplate() {
           click: () => setManualLogic("completed")
         },
         {
+          label: "Bug Hunt",
+          click: () => setManualLogic("bug_hunt")
+        },
+        {
           label: "Random Idle Action",
           click: () => {
             state.sleeping = false;
+            state.manualLogicState = undefined;
             beginAction();
           }
         }

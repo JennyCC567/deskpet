@@ -122,14 +122,13 @@ deskpet/
     renderer.js
     styles.css
   assets/
-    bug/
-      idle.png
-      walk.png
-      grab.png
-      fall.png
-      sleep.png
     puppy/
-      pet_01_flowers.png
+      manifest.json
+      pet_11_ground.png
+      pet_17_lie.png
+      click_12_wave.webp
+      finish_01_flowers.png
+      working_02_cycling.webp
       ...
   docs/
     desktop-pet-research.md
@@ -156,9 +155,9 @@ Current narrow, testable loop:
    - walks left/right;
    - can be dragged and dropped with gravity.
 5. Art loading
-   - `renderer.js` loads a manifest of local PNGs.
-   - Animated WebP is preferred when available.
-   - PNG is used as fallback if an animated asset cannot load.
+  - `renderer.js` loads a manifest of local PNGs.
+  - Animated WebP is preferred when available, but most WebP actions run as finite `animated -> still hold` units instead of infinite loops.
+  - PNG is used as fallback if an animated asset cannot load.
 6. Project state
    - VS Code/Cursor writes `.deskpet/state.json`.
    - `npm run event -- <state> [message]` can write the same contract from the terminal.
@@ -179,6 +178,8 @@ The VS Code/Cursor extension can collect:
 - Git: branch, dirty file count, staged file count, unstaged file count.
 
 Codex should be integrated as a separate adapter that writes the same `.deskpet/state.json` contract. Good normalized states are `in_progress`, `thinking`, `running_command`, `editing_files`, `waiting_approval`, `completed`, `error`, and `interrupted`.
+
+An explicit `bug_hunt` state is reserved for the caterpillar/target interaction so regular build errors can stay as an attention state until the user decides that diagnostics should spawn targets. The current debug mapping alternates `caterpillar` and `poke_bug` while that state remains active.
 
 ## Bug Catching Design
 

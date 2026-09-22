@@ -35,7 +35,10 @@ The current puppy manifest separates animation into three product layers:
 - Interaction animations: click, long press, drag, drop, sleep/wake.
 - Task-coupled animations:
   - task in progress: `cycling`, `reading`, `reading_alt`;
-  - task completed: `idle_flowers`, `firework`.
+  - bug-hunt/special task: `caterpillar` alternating with `poke_bug`;
+  - task completed: `flowers`, `firework`.
+
+Non-looping WebP actions are treated as playback units: Deskpet plays the optional entry WebP, then repeats `main WebP once -> matching PNG still hold` for 2-5 cycles when `repeatMin`/`repeatMax` are set, then plays the optional exit WebP and settles back to `sit` or `lie`. Dragging is the main exception: `sway` loops while the pet is being moved.
 
 The mapping is data-driven in [puppy/manifest.json](/Users/bytedance/Desktop/deskpet/puppy/manifest.json), so new generated actions can be added without changing the Electron state machine.
 
@@ -60,10 +63,19 @@ deskpet/
     styles.css
   puppy/
     manifest.json
-    pet_01_flowers.png
-    pet_01_flowers.webp
-    pet_02_cycling.png
-    pet_02_cycling.webp
+    click_12_wave.webp
+    click_13_petted.webp
+    debug_10_caterpillar.webp
+    debug_10_poke_bug.webp
+    finish_01_flowers.png
+    finish_01_flowers.webp
+    finish_08_firework.png
+    finish_08_firework.webp
+    move_sit_to_lift_1s.webp
+    move_lie_to_lift_1s.webp
+    move_16_sway.webp
+    working_02_cycling.png
+    working_02_cycling.webp
     ...
   scripts/
     event.js
@@ -78,7 +90,7 @@ deskpet/
 Supported from the start:
 
 - transparent PNG for still poses and fallback frames;
-- transparent animated WebP for looping actions;
+- transparent animated WebP for one-shot actions, repeated action units, transitions, and explicit loops;
 - later: sprite sheets or PNG frame sequences for frame-accurate interactions.
 
 Current assets are described in [puppy/manifest.json](/Users/bytedance/Desktop/deskpet/puppy/manifest.json). See [docs/asset-guide.md](/Users/bytedance/Desktop/deskpet/docs/asset-guide.md) before adding new actions.
@@ -121,9 +133,20 @@ Simulate project or Codex events:
 npm run event -- in_progress "Working on the current task"
 npm run event -- completed "Task completed"
 npm run event -- error "Tests failed"
+npm run event -- bug_hunt "Caterpillar spotted"
 ```
 
 The local event writer updates `.deskpet/state.json`. `npm start` watches that file by default, and the VS Code/Cursor extension writes the same file when launched from the editor.
+
+## Editor And Agent Bridge
+
+The extension supports three bridge modes through `Deskpet: Select Bridge Mode` or the `deskpet.bridgeMode` setting:
+
+- `vscode`: the extension writes `.deskpet/state.json` from VS Code/Cursor diagnostics, tasks, terminal shell execution, debug sessions, Git state, and active-file events.
+- `external`: Deskpet watches a state file written by an external Codex or Claude Code adapter. Use `deskpet.externalStateFile` to choose the path.
+- `desktop`: Deskpet runs without project-state integration.
+
+Codex and Claude Code should integrate through the same local JSON contract instead of coupling directly to their UI internals. For local testing, `npm run event -- <state> [message]` writes that contract.
 
 ## Interactions
 
@@ -133,8 +156,8 @@ The local event writer updates `.deskpet/state.json`. `npm start` watches that f
 - If the pet is in another idle action, single click randomly switches idle action.
 - Double click: pin or unpin the status bubble.
 - Triple click: sleep.
-- Long press: show current status.
-- Drag and release: play `lift_up`, loop `sway` while moving, then play `put_down`.
+- Long press: show current status and play lift.
+- Drag and release: play `sit_lift_up` or `lie_lift_up`, loop `sway` while moving, then play `put_down` and return to sitting.
 - Right click: open the pet menu.
 - Tray icon: show the pet again after hiding it.
 

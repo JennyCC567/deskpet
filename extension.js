@@ -11,6 +11,7 @@ const TRANSIENT_STATE_MS = 9000;
 let petProcess;
 let stateTimer;
 let writeQueue = Promise.resolve();
+let activeBridgeMode;
 
 const bridgeState = {
   activeTasks: new Map(),
@@ -105,7 +106,9 @@ function getDeskpetConfig() {
     bottomMargin: config.get("bottomMargin", 16),
     launchOnStartup: config.get("launchOnStartup", false),
     statusBubble: config.get("statusBubble", true),
-    statusBubblePinned: config.get("statusBubblePinned", true)
+    statusBubblePinned: config.get("statusBubblePinned", true),
+    bridgeMode: config.get("bridgeMode", "vscode"),
+    externalStateFile: config.get("externalStateFile", "")
   };
 }
 
@@ -121,6 +124,31 @@ function getProjectStatePath() {
   }
 
   return path.join(root, ".deskpet", "state.json");
+}
+
+function resolveExternalStatePath(config) {
+  if (!config.externalStateFile) {
+    return undefined;
+  }
+
+  if (path.isAbsolute(config.externalStateFile)) {
+    return config.externalStateFile;
+  }
+
+  const root = getWorkspaceRoot();
+  return root ? path.resolve(root, config.externalStateFile) : undefined;
+}
+
+function resolveStatePathForMode(config) {
+  if (config.bridgeMode === "desktop") {
+    return undefined;
+  }
+
+  if (config.bridgeMode === "external") {
+    return resolveExternalStatePath(config) || getProjectStatePath();
+  }
+
+  return getProjectStatePath();
 }
 
 function getDiagnosticsSummary() {
@@ -292,6 +320,10 @@ async function writeProjectState() {
 }
 
 function scheduleProjectStateWrite() {
+  if (activeBridgeMode !== "vscode") {
+    return writeQueue;
+  }
+
   writeQueue = writeQueue
     .catch(() => {})
     .then(() => writeProjectState())
@@ -299,7 +331,14 @@ function scheduleProjectStateWrite() {
   return writeQueue;
 }
 
-function startStateWriter() {
+function startStateWriter(config = getDeskpetConfig()) {
+  if (config.bridgeMode !== "vscode") {
+    stopStateWriter();
+    activeBridgeMode = config.bridgeMode;
+    return;
+  }
+
+  activeBridgeMode = config.bridgeMode;
   if (stateTimer) {
     return;
   }
@@ -313,6 +352,7 @@ function stopStateWriter() {
     clearInterval(stateTimer);
     stateTimer = undefined;
   }
+  activeBridgeMode = undefined;
 }
 
 async function startDeskpet(context, source = "command") {
@@ -323,13 +363,16 @@ async function startDeskpet(context, source = "command") {
 
   const existingPid = readPid();
   if (isProcessAlive(existingPid)) {
-    startStateWriter();
+    startStateWriter(config);
     return;
   }
 
   const electronPath = resolveElectronPath(context);
   const appMain = path.join(context.extensionPath, "pet-app", "main.js");
-  const statePath = await writeProjectState();
+  const statePath = resolveStatePathForMode(config);
+  if (config.bridgeMode === "vscode") {
+    await writeProjectState();
+  }
   const env = {
     ...process.env,
     DESKPET_ROOT: context.extensionPath,
@@ -355,7 +398,7 @@ async function startDeskpet(context, source = "command") {
   });
 
   petProcess.unref();
-  startStateWriter();
+  startStateWriter(config);
 }
 
 async function stopDeskpet() {
@@ -393,6 +436,52 @@ async function updateScale(context, delta) {
   await config.update("scale", next, vscode.ConfigurationTarget.Global);
   await restartDeskpet(context);
   vscode.window.showInformationMessage(`Deskpet size set to ${next}.`);
+}
+
+async function selectBridgeMode(context) {
+  const options = [
+    {
+      label: "VS Code",
+      mode: "vscode",
+      description: "Use VS Code/Cursor diagnostics, tasks, terminal, debug, Git, and editor activity."
+    },
+    {
+      label: "Codex / Claude Code",
+      mode: "external",
+      description: "Watch a local state file written by an external adapter."
+    },
+    {
+      label: "Desktop Only",
+      mode: "desktop",
+      description: "Run as a pet without project-state integration."
+    }
+  ];
+  const selected = await vscode.window.showQuickPick(options, {
+    title: "Deskpet Bridge Mode",
+    placeHolder: "Choose where Deskpet should read coding state from"
+  });
+  if (!selected) {
+    return;
+  }
+
+  const config = vscode.workspace.getConfiguration("deskpet");
+  await config.update("bridgeMode", selected.mode, vscode.ConfigurationTarget.Global);
+
+  if (selected.mode === "external") {
+    const root = getWorkspaceRoot();
+    const defaultPath = root ? path.join(".deskpet", "state.json") : "";
+    const externalStateFile = await vscode.window.showInputBox({
+      title: "External Deskpet State File",
+      prompt: "Codex or Claude Code adapters should write Deskpet state to this JSON file.",
+      value: config.get("externalStateFile", "") || defaultPath
+    });
+    if (externalStateFile !== undefined) {
+      await config.update("externalStateFile", externalStateFile, vscode.ConfigurationTarget.Global);
+    }
+  }
+
+  await restartDeskpet(context);
+  vscode.window.showInformationMessage(`Deskpet bridge mode set to ${selected.label}.`);
 }
 
 function taskSnapshot(execution, status, exitCode) {
@@ -504,7 +593,8 @@ function activate(context) {
     vscode.commands.registerCommand("deskpet.stop", stopDeskpet),
     vscode.commands.registerCommand("deskpet.restart", () => restartDeskpet(context)),
     vscode.commands.registerCommand("deskpet.larger", () => updateScale(context, SCALE_STEP)),
-    vscode.commands.registerCommand("deskpet.smaller", () => updateScale(context, -SCALE_STEP))
+    vscode.commands.registerCommand("deskpet.smaller", () => updateScale(context, -SCALE_STEP)),
+    vscode.commands.registerCommand("deskpet.selectBridgeMode", () => selectBridgeMode(context))
   );
 
   registerBridgeListeners(context);
