@@ -1,0 +1,100 @@
+{
+  "id": "puppy",
+  "displayName": "Puppy",
+  "version": 1,
+  "description": "Transparent puppy assets for the Deskpet desktop companion.",
+  "defaultScale": 0.32,
+  "defaultAction": "idle_flowers",
+  "assetSize": {
+    "width": 1000,
+    "height": 1000
+  },
+  "actions": {
+    "idle_flowers": {
+      "label": "Flowers",
+      "still": "pet_01_flowers.png",
+      "animated": "pet_01_flowers.webp",
+      "loop": true,
+      "weight": 4,
+      "tags": ["idle", "gentle"]
+    },
+    "cycling": {
+      "label": "Cycling",
+      "still": "pet_02_cycling.png",
+      "animated": "pet_02_cycling.webp",
+      "loop": true,
+      "weight": 2,
+      "tags": ["active", "wander"]
+    },
+    "reading": {
+      "label": "Reading",
+      "still": "pet_03_reading.png",
+      "animated": "pet_03_reading.webp",
+      "loop": true,
+      "weight": 3,
+      "tags": ["idle", "focus"]
+    },
+    "music": {
+      "label": "Music",
+      "still": "pet_04_music.png",
+      "animated": "pet_04_music.webp",
+      "loop": true,
+      "weight": 2,
+      "tags": ["idle", "happy"]
+    },
+    "lying": {
+      "label": "Lying",
+      "still": "pet_05_lying.png",
+      "animated": "pet_05_lying.webp",
+      "loop": true,
+      "weight": 3,
+      "tags": ["rest", "sleep"]
+    },
+    "accordion": {
+      "label": "Accordion",
+      "still": "pet_06_accordion.png",
+      "animated": "pet_06_accordion.webp",
+      "loop": true,
+      "weight": 2,
+      "tags": ["music", "happy"]
+    },
+    "autumn": {
+      "label": "Autumn",
+      "still": "pet_07_autumn.png",
+      "animated": "pet_07_autumn.webp",
+      "loop": true,
+      "weight": 1,
+      "tags": ["seasonal", "idle"]
+    },
+    "firework": {
+      "label": "Firework",
+      "still": "pet_08_firework.png",
+      "animated": "pet_08_firework.webp",
+      "loop": false,
+      "weight": 1,
+      "tags": ["celebrate", "success"]
+    },
+    "reading_alt": {
+      "label": "Reading Alt",
+      "still": "pet_09_reading.png",
+      "animated": "pet_09_reading.webp",
+      "loop": true,
+      "weight": 2,
+      "tags": ["idle", "focus"]
+    }
+  },
+  "plannedActions": {
+    "caterpillar_spawn": {
+      "label": "Caterpillar Spawn",
+      "status": "waiting_for_assets"
+    },
+    "caterpillar_chase": {
+      "label": "Caterpillar Chase",
+      "status": "waiting_for_assets"
+    },
+    "caterpillar_catch": {
+      "label": "Caterpillar Catch",
+      "status": "waiting_for_assets"
+    }
+  }
+}
