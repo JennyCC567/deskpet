@@ -2,7 +2,7 @@
 
 Deskpet is a desktop companion project for a transparent puppy pet. The first target is a floating desktop pet that can run on its own, then optionally connect to VS Code, Cursor, or Codex-related project state.
 
-The puppy assets live in `puppy/` as transparent PNG stills and animated WebP files. The current implementation can run as a local Electron desktop pet and can optionally receive workspace state from VS Code, Cursor, Codex-style hooks, or CLI scripts.
+The puppy assets live in `puppy/` as transparent base-pose PNG stills and animated WebP files. The current implementation can run as a local Electron desktop pet and can optionally receive workspace state from VS Code, Cursor, Codex-style hooks, or CLI scripts.
 
 ## Product Direction
 
@@ -10,7 +10,7 @@ Deskpet should feel closer to a terminal or desktop companion than a VS Code pan
 
 - it lives on the desktop in a transparent always-on-top window;
 - it can walk, idle, sleep, react, and be dragged around;
-- it can use local PNG/WebP assets as character animations;
+- it can use local WebP assets as character animations, with PNG reserved for base poses;
 - it can optionally receive project signals from VS Code/Cursor/Codex workflows;
 - it can later react to diagnostics, Git changes, test results, and coding activity.
 
@@ -38,7 +38,7 @@ The current puppy manifest separates animation into three product layers:
   - bug-hunt/special task: `caterpillar` alternating with `poke_bug`;
   - task completed: `flowers`, `firework`.
 
-Non-looping WebP actions are treated as playback units: Deskpet plays the optional entry WebP, then repeats `main WebP once -> matching PNG still hold` for 2-5 cycles when `repeatMin`/`repeatMax` are set, then plays the optional exit WebP and settles back to `sit` or `lie`. Dragging is the main exception: `sway` loops while the pet is being moved.
+Non-looping WebP actions are treated as playback units: Deskpet plays the optional entry WebP, then repeats the main WebP directly for 2-5 cycles when `repeatMin`/`repeatMax` are set, then plays the optional exit WebP and settles back to `sit` or `lie`. Dragging is the main exception: `sway` loops while the pet is being moved.
 
 The mapping is data-driven in [puppy/manifest.json](/Users/bytedance/Desktop/deskpet/puppy/manifest.json), so new generated actions can be added without changing the Electron state machine.
 
@@ -67,14 +67,11 @@ deskpet/
     click_13_petted.webp
     debug_10_caterpillar.webp
     debug_10_poke_bug.webp
-    finish_01_flowers.png
     finish_01_flowers.webp
-    finish_08_firework.png
     finish_08_firework.webp
     move_sit_to_lift_1s.webp
     move_lie_to_lift_1s.webp
     move_16_sway.webp
-    working_02_cycling.png
     working_02_cycling.webp
     ...
   scripts/
@@ -89,7 +86,7 @@ deskpet/
 
 Supported from the start:
 
-- transparent PNG for still poses and fallback frames;
+- transparent PNG for the two base still poses;
 - transparent animated WebP for one-shot actions, repeated action units, transitions, and explicit loops;
 - later: sprite sheets or PNG frame sequences for frame-accurate interactions.
 

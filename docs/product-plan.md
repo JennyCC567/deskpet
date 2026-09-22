@@ -35,7 +35,7 @@ Current puppy mapping:
 - Task completed: random `flowers` or `firework`.
 - Special task state: `bug_hunt` alternates `caterpillar` and `poke_bug`.
 
-Most main WebP actions are finite repeated units: play the optional entry transition, then repeat `animated WebP once -> PNG still hold` 2-5 times, then play the optional exit transition and settle to the correct base pose. Explicit loops are reserved for interaction states that last until direct input ends, such as drag `sway`; the current `bug_hunt` state alternates two non-looping debug animations while the state remains active.
+Most main WebP actions are finite repeated units: play the optional entry transition, then repeat the main animated WebP 2-5 times directly, then play the optional exit transition and settle to the correct base pose. Explicit loops are reserved for interaction states that last until direct input ends, such as drag `sway`; the current `bug_hunt` state alternates two non-looping debug animations while the state remains active.
 
 This keeps the product flexible: one task state can randomly choose from several animations, and a new puppy skin can change the mapping without changing the runtime.
 

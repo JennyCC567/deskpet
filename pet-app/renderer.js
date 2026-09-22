@@ -49,18 +49,17 @@
     return action.animated || action.still;
   }
 
-  function setAction(actionName, visualVariant = "animated", forceReplay = false) {
+  function setAction(actionName, visualVariant = "animated", visualRevision = 0) {
     const action = resolveAction(actionName);
     if (!action) {
       return;
     }
 
-    const src = assetUrl(actionFile(action, visualVariant));
-    if (src && (forceReplay || pet.src !== src)) {
-      pet.src = "";
-      requestAnimationFrame(() => {
-        pet.src = src;
-      });
+    const file = actionFile(action, visualVariant);
+    const version = visualVariant === "animated" ? `?v=${encodeURIComponent(visualRevision)}` : "";
+    const src = file ? `${assetUrl(file)}${version}` : "";
+    if (src && pet.src !== src) {
+      pet.src = src;
     }
     pet.dataset.action = actionName;
     pet.dataset.variant = visualVariant;
@@ -209,14 +208,14 @@
       state.visualRevision = nextState.visualRevision;
       state.action = nextState.action || state.action;
       state.visualVariant = nextState.visualVariant || state.visualVariant;
-      setAction(state.action, state.visualVariant, true);
+      setAction(state.action, state.visualVariant, state.visualRevision);
     } else if (
       nextState.action
       && (nextState.action !== state.action || nextState.visualVariant !== state.visualVariant)
     ) {
       state.action = nextState.action;
       state.visualVariant = nextState.visualVariant || state.visualVariant;
-      setAction(nextState.action, state.visualVariant);
+      setAction(nextState.action, state.visualVariant, state.visualRevision);
     }
     if (nextState.bubble) {
       updateBubble(nextState.bubble);
@@ -248,7 +247,7 @@
   stage.style.height = `${stageHeight}px`;
   pet.style.width = `${stageWidth}px`;
   pet.style.height = `${stageHeight}px`;
-  setAction(state.action, state.visualVariant);
+  setAction(state.action, state.visualVariant, state.visualRevision);
 
   if (pet.complete) {
     reportReadyOnce();

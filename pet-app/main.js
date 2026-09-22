@@ -102,7 +102,6 @@ const state = {
   projectHoldUntil: 0,
   manualLogicState: undefined,
   pendingAction: undefined,
-  pendingAfterHold: undefined,
   activeActionPlayback: undefined,
   statusText: projectStateFile ? "Deskpet is watching this workspace." : "Deskpet is running in desktop mode.",
   bubbleVisible: config.statusBubble !== false && config.statusBubblePinned !== false,
@@ -315,11 +314,6 @@ function actionCycleNextAction(actionName) {
   return resolveAction(actionName)?.cycleNextAction;
 }
 
-function actionHoldDuration(actionName, fallbackMs = 0) {
-  const duration = resolveAction(actionName)?.holdMs;
-  return Number.isFinite(duration) && duration >= 0 ? duration : fallbackMs;
-}
-
 function actionIsLooping(actionName) {
   return resolveAction(actionName)?.loop !== false;
 }
@@ -443,10 +437,6 @@ function clearPendingAction() {
   state.pendingAction = undefined;
 }
 
-function clearPendingAfterHold() {
-  state.pendingAfterHold = undefined;
-}
-
 function clearActiveActionPlayback() {
   state.activeActionPlayback = undefined;
 }
@@ -470,7 +460,6 @@ function beginTimedAction(mode, action, timerMs = actionDuration(action, config.
     return;
   }
 
-  clearPendingAfterHold();
   clearActiveActionPlayback();
   const fromPose = options.allowPoseTransition === false ? undefined : actionFromPose(action);
   if (fromPose && fromPose !== state.pose) {
@@ -530,32 +519,16 @@ function beginTimedAction(mode, action, timerMs = actionDuration(action, config.
 function settleAfterAction() {
   clearPendingAction();
   const completedAction = state.action;
-  const actionDef = resolveAction(completedAction);
   const exitAction = actionExitAction(completedAction);
   const settleAction = actionSettleAction(completedAction);
   const cycleNextAction = actionCycleNextAction(completedAction);
   const nextPose = actionNextPose(completedAction);
-  const holdMs = actionHoldDuration(completedAction, 0);
   const actionPlayback = state.activeActionPlayback?.action === completedAction
     ? { ...state.activeActionPlayback }
     : undefined;
 
   if (nextPose) {
     state.pose = nextPose;
-  }
-
-  if (holdMs > 0 && actionDef?.still && state.visualVariant !== "still") {
-    state.pendingAfterHold = {
-      exitAction,
-      settleAction,
-      nextPose,
-      actionPlayback
-    };
-    setVisual("action_hold", completedAction, holdMs, {
-      visualVariant: "still",
-      updatePose: false
-    });
-    return;
   }
 
   if (actionPlayback?.remainingPlays > 0) {
@@ -585,44 +558,6 @@ function settleAfterAction() {
   chooseNextMode();
 }
 
-function finishActionHold() {
-  const afterHold = state.pendingAfterHold;
-  clearPendingAfterHold();
-
-  if (afterHold?.nextPose) {
-    state.pose = afterHold.nextPose;
-  }
-
-  if (afterHold?.actionPlayback?.remainingPlays > 0) {
-    replayActiveAction({
-      ...afterHold.actionPlayback,
-      remainingPlays: afterHold.actionPlayback.remainingPlays - 1
-    });
-    return;
-  }
-
-  clearActiveActionPlayback();
-  if (afterHold?.actionPlayback?.action) {
-    const cycleNextAction = actionCycleNextAction(afterHold.actionPlayback.action);
-    if (cycleNextAction && resolveAction(cycleNextAction) && shouldUseProjectVisual(state.logicState)) {
-      beginTimedAction(afterHold.actionPlayback.mode, cycleNextAction, logicTimerMs(state.logicState));
-      return;
-    }
-  }
-
-  if (afterHold?.exitAction && resolveAction(afterHold.exitAction)) {
-    setVisual("action_exit", afterHold.exitAction, actionDuration(afterHold.exitAction, 1000), { visualVariant: "animated" });
-    return;
-  }
-
-  if (afterHold?.settleAction && resolveAction(afterHold.settleAction)) {
-    beginPoseIdle(actionPose(afterHold.settleAction) || afterHold.nextPose || state.pose);
-    return;
-  }
-
-  chooseNextMode();
-}
-
 function beginMappedState(logicState, timerMs = logicTimerMs(logicState)) {
   const action = weightedAction(entriesForLogic(logicState));
   beginTimedAction(logicState, action, timerMs);
@@ -630,7 +565,6 @@ function beginMappedState(logicState, timerMs = logicTimerMs(logicState)) {
 
 function beginPoseIdle(pose = state.pose, timerMs = randomBetween(config.baseIdleMinMs, config.baseIdleMaxMs)) {
   clearPendingAction();
-  clearPendingAfterHold();
   clearActiveActionPlayback();
   const action = baseActionForPose(pose);
   state.pose = actionPose(action) || pose || state.pose;
@@ -737,7 +671,6 @@ function beginDragLift() {
 
 function beginDragSway() {
   clearPendingAction();
-  clearPendingAfterHold();
   clearActiveActionPlayback();
   const action = manifest.dragSequence?.dragging || "sway";
   state.dragPhase = "sway";
@@ -754,7 +687,6 @@ function beginDragDrop() {
 
 function beginSleep() {
   clearPendingAction();
-  clearPendingAfterHold();
   clearActiveActionPlayback();
   const action = weightedAction(entriesForInteraction("sleep"));
   setVisual("sleep", action, randomBetween(7000, 15000), { visualVariant: "still" });
@@ -1214,12 +1146,6 @@ function tick() {
       return;
     }
 
-    if (state.mode === "action_hold") {
-      finishActionHold();
-      moveWindow();
-      return;
-    }
-
     if (resolveAction(state.action)?.loop === false) {
       settleAfterAction();
       moveWindow();
@@ -1377,6 +1303,8 @@ function createWindow() {
     y: Math.round(area.y + area.height - config.bottomMargin - state.height),
     width: state.width,
     height: state.height,
+    show: false,
+    title: "Deskpet",
     transparent: true,
     frame: false,
     resizable: false,
@@ -1390,6 +1318,7 @@ function createWindow() {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: false,
       preload: path.join(__dirname, "preload.js")
     }
   });
@@ -1397,6 +1326,9 @@ function createWindow() {
   window.setAlwaysOnTop(true, "screen-saver");
   window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   window.loadFile(path.join(__dirname, "index.html"));
+  window.once("ready-to-show", () => {
+    window.showInactive();
+  });
 }
 
 function readProjectState() {
@@ -1461,6 +1393,8 @@ ipcMain.on("deskpet:ready", (_event, size) => {
   state.ready = true;
   keepInsideWorkArea();
   moveWindow();
+  window.showInactive();
+  window.setAlwaysOnTop(true, "screen-saver");
   beginIdle();
   readProjectState();
   showStatusBubble(2400);

@@ -18,7 +18,7 @@ Electron Desktop Pet
             |
             v
 Renderer Canvas/DOM
-  - PNG/WebP rendering
+  - base PNG and animated WebP rendering
   - pointer interaction
   - visual effects
 ```
@@ -121,7 +121,7 @@ Planned file: `pet-app/renderer.js`
 Responsibilities:
 
 - load a pet manifest;
-- load transparent PNG and animated WebP assets;
+- load transparent base PNG and animated WebP assets;
 - render the current action;
 - choose `still` PNG or `animated` WebP from the main-process `visualVariant`;
 - handle pointer down/move/up;
@@ -141,10 +141,10 @@ Purpose:
 
 - define the pet id and display name;
 - list supported actions;
-- map each action to a PNG fallback and/or animated WebP;
+- map each action to a base PNG still or animated WebP;
 - group actions into idle, interaction, task-in-progress, and task-completed pools;
 - map logic states to action pools;
-- define pose requirements, enter transitions, still-frame holds, exit transitions, and settle actions;
+- define pose requirements, enter transitions, exit transitions, repeat counts, and settle actions;
 - keep animation behavior data-driven.
 
 ### Runtime Config
@@ -280,7 +280,7 @@ Project logic states:
 Animation mode chain for most non-looping WebP actions:
 
 ```text
-optional enterAction -> (animated action once -> still hold) x repeatCount/repeatMin-repeatMax -> optional exitAction -> settleAction/base pose
+optional enterAction -> animated action x repeatCount/repeatMin-repeatMax -> optional exitAction -> settleAction/base pose
 ```
 
 Actions may also declare `cycleNextAction`. The current `bug_hunt` mapping uses it to alternate `caterpillar` and `poke_bug` while the project/manual state is still active.
@@ -305,8 +305,8 @@ The Electron main process owns desktop physics. The renderer owns visual animati
 
 Start with the current `puppy/` folder:
 
-- PNG stills are fallback and poster images.
-- WebP files are preferred for finite action units, transitions, and explicit interaction loops.
+- PNG stills are reserved for base poses and emergency fallbacks.
+- WebP files are preferred for finite action units, transitions, task reactions, celebrations, and explicit interaction loops.
 - New actions should be added to `puppy/manifest.json`.
 
 Later, when packaging:

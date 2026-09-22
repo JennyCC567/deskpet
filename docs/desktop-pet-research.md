@@ -127,7 +127,7 @@ deskpet/
       pet_11_ground.png
       pet_17_lie.png
       click_12_wave.webp
-      finish_01_flowers.png
+      finish_01_flowers.webp
       working_02_cycling.webp
       ...
   docs/
@@ -155,9 +155,9 @@ Current narrow, testable loop:
    - walks left/right;
    - can be dragged and dropped with gravity.
 5. Art loading
-  - `renderer.js` loads a manifest of local PNGs.
-  - Animated WebP is preferred when available, but most WebP actions run as finite `animated -> still hold` units instead of infinite loops.
-  - PNG is used as fallback if an animated asset cannot load.
+  - `renderer.js` loads a manifest of local base PNGs and WebP animations.
+  - Animated WebP is preferred for actions, with repeated actions replayed directly instead of switching through still frames.
+  - PNG is reserved for base sitting/lying poses and emergency fallbacks.
 6. Project state
    - VS Code/Cursor writes `.deskpet/state.json`.
    - `npm run event -- <state> [message]` can write the same contract from the terminal.

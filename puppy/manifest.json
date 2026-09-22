@@ -1,7 +1,7 @@
 {
   "id": "puppy",
   "displayName": "Puppy",
-  "version": 4,
+  "version": 5,
   "description": "Transparent puppy assets for the Deskpet desktop companion.",
   "defaultScale": 0.32,
   "defaultAction": "sit",
@@ -86,7 +86,6 @@
     },
     "sit_to_lie": {
       "label": "Sit To Lie",
-      "still": "pet_17_lie.png",
       "animated": "sit_to_lie_1s.webp",
       "loop": false,
       "weight": 0,
@@ -98,7 +97,6 @@
     },
     "lie_to_sit": {
       "label": "Lie To Sit",
-      "still": "pet_11_ground.png",
       "animated": "lie_to_sit_1s.webp",
       "loop": false,
       "weight": 0,
@@ -110,7 +108,6 @@
     },
     "sit_to_music": {
       "label": "Sit To Music",
-      "still": "pet_04_music_left.png",
       "animated": "pet_04_sit_to_musicleft_4s.webp",
       "loop": false,
       "weight": 0,
@@ -121,7 +118,6 @@
     },
     "music_to_sit": {
       "label": "Music To Sit",
-      "still": "pet_11_ground.png",
       "animated": "pet_04_musicleft_to_sit_4s.webp",
       "loop": false,
       "weight": 0,
@@ -132,7 +128,6 @@
     },
     "sit_to_accordion": {
       "label": "Sit To Accordion",
-      "still": "pet_06_accordion.png",
       "animated": "pet_06_sit_to_accordion_4s.webp",
       "loop": false,
       "weight": 0,
@@ -143,7 +138,6 @@
     },
     "accordion_to_sit": {
       "label": "Accordion To Sit",
-      "still": "pet_11_ground.png",
       "animated": "pet_06_accordion_to_sit_4s.webp",
       "loop": false,
       "weight": 0,
@@ -154,7 +148,6 @@
     },
     "lie_to_lying": {
       "label": "Lie To Lying Idle",
-      "still": "pet_05_lying.png",
       "animated": "pet_05_lie_to_sleep_4s.webp",
       "loop": false,
       "weight": 0,
@@ -165,7 +158,6 @@
     },
     "lying_to_lie": {
       "label": "Lying Idle To Lie",
-      "still": "pet_17_lie.png",
       "animated": "pet_05_sleep_to_lie_4s.webp",
       "loop": false,
       "weight": 0,
@@ -176,7 +168,6 @@
     },
     "lie_to_autumn": {
       "label": "Lie To Autumn",
-      "still": "pet_07_autumn.png",
       "animated": "pet_07_lie_to_autumn_4s.webp",
       "loop": false,
       "weight": 0,
@@ -187,7 +178,6 @@
     },
     "autumn_to_lie": {
       "label": "Autumn To Lie",
-      "still": "pet_17_lie.png",
       "animated": "pet_07_autumn_to_lie_4s.webp",
       "loop": false,
       "weight": 0,
@@ -198,7 +188,6 @@
     },
     "flowers_to_sit": {
       "label": "Flowers To Sit",
-      "still": "pet_11_ground.png",
       "animated": "finish_01_flowers_to_sit_1s.webp",
       "loop": false,
       "weight": 0,
@@ -209,7 +198,6 @@
     },
     "firework_to_lie": {
       "label": "Firework To Lie",
-      "still": "pet_17_lie.png",
       "animated": "finish_08_firework_to_lie_4s.webp",
       "loop": false,
       "weight": 0,
@@ -220,12 +208,10 @@
     },
     "wave": {
       "label": "Wave",
-      "still": "pet_11_ground.png",
       "animated": "click_12_wave.webp",
       "loop": false,
       "weight": 0,
       "durationMs": 4074,
-      "holdMs": 1800,
       "fromPose": "sit",
       "nextPose": "sit",
       "settleAction": "sit",
@@ -233,12 +219,10 @@
     },
     "petted": {
       "label": "Petted",
-      "still": "pet_17_lie.png",
       "animated": "click_13_petted.webp",
       "loop": false,
       "weight": 0,
       "durationMs": 4074,
-      "holdMs": 1800,
       "fromPose": "lie",
       "nextPose": "lie",
       "settleAction": "lie",
@@ -246,7 +230,6 @@
     },
     "sit_lift_up": {
       "label": "Sit To Lift",
-      "still": "pet_11_ground.png",
       "animated": "move_sit_to_lift_1s.webp",
       "loop": false,
       "weight": 0,
@@ -256,7 +239,6 @@
     },
     "lie_lift_up": {
       "label": "Lie To Lift",
-      "still": "pet_17_lie.png",
       "animated": "move_lie_to_lift_1s.webp",
       "loop": false,
       "weight": 0,
@@ -266,7 +248,6 @@
     },
     "sway": {
       "label": "Sway",
-      "still": "pet_11_ground.png",
       "animated": "move_16_sway.webp",
       "loop": true,
       "weight": 0,
@@ -274,7 +255,6 @@
     },
     "put_down": {
       "label": "Put Down",
-      "still": "pet_11_ground.png",
       "animated": "move_put_down_1s.webp",
       "loop": false,
       "weight": 0,
@@ -286,7 +266,6 @@
     },
     "caterpillar": {
       "label": "Caterpillar",
-      "still": "",
       "animated": "debug_10_caterpillar.webp",
       "loop": false,
       "weight": 0,
@@ -296,7 +275,6 @@
     },
     "poke_bug": {
       "label": "Poke Bug",
-      "still": "",
       "animated": "debug_10_poke_bug.webp",
       "loop": false,
       "weight": 0,
@@ -306,12 +284,10 @@
     },
     "flowers": {
       "label": "Flowers",
-      "still": "finish_01_flowers.png",
       "animated": "finish_01_flowers.webp",
       "loop": false,
       "weight": 3,
       "durationMs": 4074,
-      "holdMs": 2600,
       "repeatMin": 2,
       "repeatMax": 5,
       "exitAction": "flowers_to_sit",
@@ -321,12 +297,10 @@
     },
     "firework": {
       "label": "Firework",
-      "still": "finish_08_firework.png",
       "animated": "finish_08_firework.webp",
       "loop": false,
       "weight": 3,
       "durationMs": 4074,
-      "holdMs": 2600,
       "repeatMin": 2,
       "repeatMax": 5,
       "exitAction": "firework_to_lie",
@@ -336,48 +310,40 @@
     },
     "cycling": {
       "label": "Cycling",
-      "still": "working_02_cycling.png",
       "animated": "working_02_cycling.webp",
       "loop": false,
       "weight": 2,
       "durationMs": 4074,
-      "holdMs": 1600,
       "repeatMin": 2,
       "repeatMax": 5,
       "tags": ["task", "working", "active"]
     },
     "reading": {
       "label": "Reading",
-      "still": "working_03_reading.png",
       "animated": "working_03_reading.webp",
       "loop": false,
       "weight": 3,
       "durationMs": 4074,
-      "holdMs": 1600,
       "repeatMin": 2,
       "repeatMax": 5,
       "tags": ["task", "working", "focus"]
     },
     "reading_alt": {
       "label": "Reading Alt",
-      "still": "working_09_reading.png",
       "animated": "working_09_reading.webp",
       "loop": false,
       "weight": 2,
       "durationMs": 4074,
-      "holdMs": 1600,
       "repeatMin": 2,
       "repeatMax": 5,
       "tags": ["task", "working", "focus"]
     },
     "music": {
       "label": "Music",
-      "still": "pet_04_music_left.png",
       "animated": "pet_04_music_left.webp",
       "loop": false,
       "weight": 2,
       "durationMs": 4074,
-      "holdMs": 2200,
       "repeatMin": 2,
       "repeatMax": 5,
       "fromPose": "sit",
@@ -389,12 +355,10 @@
     },
     "lying": {
       "label": "Lying Idle",
-      "still": "pet_05_lying.png",
       "animated": "pet_05_lying.webp",
       "loop": false,
       "weight": 2,
       "durationMs": 4074,
-      "holdMs": 2200,
       "repeatMin": 2,
       "repeatMax": 5,
       "fromPose": "lie",
@@ -406,12 +370,10 @@
     },
     "accordion": {
       "label": "Accordion",
-      "still": "pet_06_accordion.png",
       "animated": "pet_06_accordion.webp",
       "loop": false,
       "weight": 2,
       "durationMs": 4074,
-      "holdMs": 2200,
       "repeatMin": 2,
       "repeatMax": 5,
       "fromPose": "sit",
@@ -423,12 +385,10 @@
     },
     "autumn": {
       "label": "Autumn",
-      "still": "pet_07_autumn.png",
       "animated": "pet_07_autumn.webp",
       "loop": false,
       "weight": 2,
       "durationMs": 4074,
-      "holdMs": 2200,
       "repeatMin": 2,
       "repeatMax": 5,
       "fromPose": "lie",

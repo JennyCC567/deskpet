@@ -4,13 +4,13 @@
 
 Deskpet can use:
 
-- transparent PNG for still poses, fallbacks, and precise single-frame states;
+- transparent PNG for base still poses and emergency fallbacks;
 - transparent animated WebP for one-shot actions, transitions, reading, celebrations, and explicit loops;
 - future PNG sequences or sprite sheets when frame-level control is needed.
 
 The current puppy PNG files are `1000 x 1000` RGBA images, which is a good source size. The renderer can scale them down for desktop display.
 
-Important runtime rule: most animated WebP files are played as finite action units, not as infinite loops. Deskpet plays the optional `enterAction`, then repeats `animated WebP once -> PNG still hold` for the action's `repeatMin`/`repeatMax` range, then plays the optional `exitAction` and settles back to a base pose. Use `"loop": true` only for visuals that should keep moving until direct input ends, such as drag `sway`.
+Important runtime rule: most animated WebP files are played as finite action units, not as infinite loops. Deskpet plays the optional `enterAction`, then repeats the main animated WebP directly for the action's `repeatMin`/`repeatMax` range, then plays the optional `exitAction` and settles back to a base pose. Use `"loop": true` only for visuals that should keep moving until direct input ends, such as drag `sway`.
 
 ## Current Asset Folder
 
@@ -25,22 +25,16 @@ puppy/
   click_13_petted.webp
   debug_10_caterpillar.webp
   debug_10_poke_bug.webp
-  finish_01_flowers.png
   finish_01_flowers.webp
-  finish_08_firework.png
   finish_08_firework.webp
   move_sit_to_lift_1s.webp
   move_lie_to_lift_1s.webp
   move_16_sway.webp
-  working_02_cycling.png
   working_02_cycling.webp
   ...
 ```
 
-Each PNG/WebP pair should represent the same pose or action:
-
-- `.png`: stable fallback/poster image;
-- `.webp`: animated version when available.
+Only base poses need PNG stills. For action, transition, task, and completion animations, prefer a single transparent animated WebP so the runtime can chain one animation into the next without switching to a mismatched still frame.
 
 ## Manifest Contract
 
@@ -50,7 +44,7 @@ Each pet has a manifest:
 {
   "id": "puppy",
   "displayName": "Puppy",
-  "version": 4,
+  "version": 5,
   "defaultScale": 0.32,
   "defaultAction": "sit",
   "defaultPose": "sit",
@@ -91,11 +85,9 @@ Each pet has a manifest:
   "actions": {
     "flowers": {
       "label": "Flowers",
-      "still": "finish_01_flowers.png",
       "animated": "finish_01_flowers.webp",
       "loop": false,
       "durationMs": 4074,
-      "holdMs": 2600,
       "repeatMin": 2,
       "repeatMax": 5,
       "exitAction": "flowers_to_sit",
@@ -115,17 +107,16 @@ Field meaning:
 - `stateMappings`: maps logical task/editor states to one or more actions.
 - `interactionMappings`: maps direct user interactions to actions.
 - `actions`: named animation states.
-- `still`: PNG fallback.
+- `still`: PNG still for base poses, or an emergency fallback for actions that have no usable WebP.
 - `animated`: WebP animation.
 - `loop`: whether the action can loop.
 - `durationMs`: how long to show a one-shot WebP before moving on.
-- `holdMs`: how long to show the PNG still after a one-shot WebP.
-- `repeatCount`: fixed number of `animated -> still` units before exiting.
-- `repeatMin` / `repeatMax`: random inclusive range for repeated `animated -> still` units. Use this for main idle, working, and completion actions that should repeat 2-5 times.
+- `repeatCount`: fixed number of animated WebP plays before exiting.
+- `repeatMin` / `repeatMax`: random inclusive range for repeated animated WebP plays. Use this for main idle, working, and completion actions that should repeat 2-5 times.
 - `fromPose`: required starting base pose, such as `sit` or `lie`.
 - `nextPose`: pose after the action completes.
 - `enterAction`: optional transition action before the main action.
-- `exitAction`: optional transition action after the main action and still hold.
+- `exitAction`: optional transition action after the main action.
 - `settleAction`: base action to display after the action chain finishes.
 - `cycleNextAction`: optional next action to launch when the current logic state is still active. This is used by `bug_hunt` to alternate `caterpillar` and `poke_bug`.
 - `weight`: relative chance in random idle rotation.
@@ -181,11 +172,9 @@ For ambient actions that need an entry and exit transition, keep the main action
 ```json
 {
   "accordion": {
-    "still": "pet_06_accordion.png",
     "animated": "pet_06_accordion.webp",
     "loop": false,
     "durationMs": 4074,
-    "holdMs": 2200,
     "fromPose": "sit",
     "enterAction": "sit_to_accordion",
     "exitAction": "accordion_to_sit",
@@ -199,11 +188,9 @@ For main actions that should repeat several complete units before exiting, set a
 ```json
 {
   "reading": {
-    "still": "working_03_reading.png",
     "animated": "working_03_reading.webp",
     "loop": false,
     "durationMs": 4074,
-    "holdMs": 1600,
     "repeatMin": 2,
     "repeatMax": 5
   }
@@ -265,10 +252,9 @@ Suggested future caterpillar mapping:
 
 1. Add the image files to `puppy/`.
 2. Use lowercase file names if possible.
-3. Prefer matching PNG/WebP pairs:
+3. Prefer a single transparent WebP for animated actions:
 
 ```text
-debug_10_caterpillar_spawn.png
 debug_10_caterpillar_spawn.webp
 ```
 
@@ -277,7 +263,6 @@ debug_10_caterpillar_spawn.webp
 ```json
 {
   "label": "Caterpillar Spawn",
-  "still": "debug_10_caterpillar_spawn.png",
   "animated": "debug_10_caterpillar_spawn.webp",
   "loop": false,
   "weight": 0
