@@ -77,6 +77,38 @@ Supported from the start:
 
 Current assets are described in [puppy/manifest.json](/Users/bytedance/Desktop/deskpet/puppy/manifest.json). See [docs/asset-guide.md](/Users/bytedance/Desktop/deskpet/docs/asset-guide.md) before adding new actions.
 
+## Local Development
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run the desktop pet directly:
+
+```bash
+npm start
+```
+
+Stop the desktop pet:
+
+```bash
+npm run stop
+```
+
+Check whether it is running:
+
+```bash
+npm run status
+```
+
+Validate assets and JavaScript syntax:
+
+```bash
+npm run check
+```
+
 ## Roadmap
 
 1. Planning and asset contract

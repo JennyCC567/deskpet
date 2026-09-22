@@ -1,0 +1,86 @@
+{
+  "name": "deskpet",
+  "displayName": "Deskpet",
+  "description": "A transparent desktop puppy companion with optional editor project awareness.",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "main": "./extension.js",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "activationEvents": [
+    "onCommand:deskpet.start",
+    "onCommand:deskpet.stop",
+    "onCommand:deskpet.restart",
+    "onCommand:deskpet.larger",
+    "onCommand:deskpet.smaller",
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "deskpet.start",
+        "title": "Deskpet: Start"
+      },
+      {
+        "command": "deskpet.stop",
+        "title": "Deskpet: Stop"
+      },
+      {
+        "command": "deskpet.restart",
+        "title": "Deskpet: Restart"
+      },
+      {
+        "command": "deskpet.larger",
+        "title": "Deskpet: Larger"
+      },
+      {
+        "command": "deskpet.smaller",
+        "title": "Deskpet: Smaller"
+      }
+    ],
+    "configuration": {
+      "title": "Deskpet",
+      "properties": {
+        "deskpet.launchOnStartup": {
+          "type": "boolean",
+          "default": false,
+          "description": "Start Deskpet automatically when the editor starts."
+        },
+        "deskpet.scale": {
+          "type": "number",
+          "default": 0.32,
+          "minimum": 0.12,
+          "maximum": 0.8,
+          "description": "Scale applied to the source pet artwork."
+        },
+        "deskpet.speed": {
+          "type": "number",
+          "default": 34,
+          "minimum": 0,
+          "maximum": 180,
+          "description": "Horizontal wandering speed in pixels per second."
+        },
+        "deskpet.bottomMargin": {
+          "type": "number",
+          "default": 16,
+          "minimum": 0,
+          "maximum": 320,
+          "description": "Distance in pixels between Deskpet and the bottom of the current display."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "start": "node scripts/start.js",
+    "dev": "node scripts/start.js",
+    "stop": "node scripts/stop.js",
+    "status": "node scripts/status.js",
+    "validate": "node scripts/validate-assets.js",
+    "check": "npm run validate && node --check extension.js && node --check pet-app/main.js && node --check pet-app/preload.js && node --check pet-app/renderer.js && node --check scripts/start.js && node --check scripts/status.js && node --check scripts/stop.js && node --check scripts/validate-assets.js"
+  },
+  "devDependencies": {
+    "electron": "^44.4.3"
+  }
+}
