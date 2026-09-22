@@ -13,7 +13,7 @@ if (!gotLock) {
 const DEFAULT_CONFIG = {
   petId: "puppy",
   petDir: "puppy",
-  scale: 0.2,
+  scale: 0.15,
   speed: 34,
   bottomMargin: 16,
   idleMinMs: 3500,

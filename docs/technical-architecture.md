@@ -154,7 +154,7 @@ Passed from extension to Electron through environment variables:
 ```json
 {
   "petId": "puppy",
-  "scale": 0.2,
+  "scale": 0.15,
   "speed": 32,
   "bottomMargin": 12,
   "launchOnStartup": true

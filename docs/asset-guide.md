@@ -45,7 +45,7 @@ Each pet has a manifest:
   "id": "puppy",
   "displayName": "Puppy",
   "version": 5,
-  "defaultScale": 0.2,
+  "defaultScale": 0.15,
   "defaultAction": "sit",
   "defaultPose": "sit",
   "animationGroups": {
