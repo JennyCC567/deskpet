@@ -16,6 +16,7 @@ body {
   overflow: hidden;
   background: transparent;
   cursor: grab;
+  contain: layout paint;
 }
 
 body.dragging #stage {
@@ -37,7 +38,7 @@ body.dragging #stage {
   top: 8px;
   left: 50%;
   max-width: calc(100% - 24px);
-  padding: 6px 9px;
+  padding: 7px 10px;
   border: 1px solid rgba(40, 40, 40, 0.14);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.9);
@@ -46,6 +47,36 @@ body.dragging #stage {
   text-align: center;
   transform: translateX(-50%);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   box-shadow: 0 5px 18px rgba(0, 0, 0, 0.13);
   pointer-events: none;
+}
+
+#bubble[data-state="completed"] {
+  border-color: rgba(36, 122, 70, 0.22);
+  background: rgba(236, 255, 242, 0.94);
+  color: #15512e;
+}
+
+#bubble[data-state="in_progress"],
+#bubble[data-state="thinking"],
+#bubble[data-state="running_command"],
+#bubble[data-state="editing_files"],
+#bubble[data-state="waiting_approval"] {
+  border-color: rgba(40, 95, 160, 0.22);
+  background: rgba(238, 247, 255, 0.94);
+  color: #193f68;
+}
+
+#bubble[data-state="warning"] {
+  border-color: rgba(163, 112, 26, 0.28);
+  background: rgba(255, 249, 231, 0.95);
+  color: #68430b;
+}
+
+#bubble[data-state="error"] {
+  border-color: rgba(168, 55, 48, 0.3);
+  background: rgba(255, 239, 238, 0.95);
+  color: #7f221d;
 }

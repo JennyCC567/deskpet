@@ -14,7 +14,7 @@ VS Code / Cursor Extension
 Electron Desktop Pet
   - transparent always-on-top BrowserWindow
   - local asset loading
-  - animation and interaction state machine
+  - animation, interaction, and task state machine
             |
             v
 Renderer Canvas/DOM
@@ -37,13 +37,21 @@ Responsibilities:
   - `deskpet.restart`
   - `deskpet.larger`
   - `deskpet.smaller`
-  - `deskpet.spawnTarget`
 - read configuration from `vscode.workspace.getConfiguration("deskpet")`;
 - locate the bundled Electron binary;
 - spawn `pet-app/main.js`;
 - write/read a PID file to avoid duplicate windows;
 - send startup config through environment variables;
-- optionally write or stream project state.
+- write project state to `.deskpet/state.json`.
+
+Current bridge signals:
+
+- diagnostics: error, warning, information, hint counts;
+- tasks: start, end, process exit code, active task count;
+- terminal shell execution: command start/end when the installed VS Code/Cursor API exposes shell integration events;
+- debug sessions: start/end and active debug count;
+- editor activity: active file changes and saves;
+- Git: branch, dirty file count, staged file count, unstaged file count.
 
 ### Electron Main Process
 
@@ -56,7 +64,11 @@ Responsibilities:
 - apply desktop-level movement, gravity, and drag release behavior;
 - own the authoritative window position;
 - receive pointer and animation events from the renderer through IPC;
-- send high-level state to the renderer.
+- read `.deskpet/state.json` when present;
+- normalize editor/Codex/CLI events into Deskpet logic states;
+- select animation actions from manifest mappings;
+- send high-level state and status bubble data to the renderer;
+- own right-click context menu and tray recovery.
 
 Recommended window options:
 
@@ -92,7 +104,8 @@ window.deskpet = {
   pointerDown(point),
   pointerUp(),
   click(),
-  animationEnded(mode),
+  longPress(),
+  contextMenu(),
   onState(callback)
 };
 ```
@@ -107,6 +120,7 @@ Responsibilities:
 - load transparent PNG and animated WebP assets;
 - render the current action;
 - handle pointer down/move/up;
+- handle right-click and long-press gestures;
 - animate local effects;
 - report animation completion when the implementation can detect it.
 
@@ -123,6 +137,8 @@ Purpose:
 - define the pet id and display name;
 - list supported actions;
 - map each action to a PNG fallback and/or animated WebP;
+- group actions into idle, interaction, task-in-progress, and task-completed pools;
+- map logic states to action pools;
 - keep animation behavior data-driven.
 
 ### Runtime Config
@@ -154,26 +170,81 @@ Suggested shape:
   "workspacePath": "/path/to/project",
   "source": "vscode",
   "timestamp": "2026-09-22T12:00:00.000Z",
+  "deskpet": {
+    "state": "in_progress"
+  },
   "git": {
     "branch": "main",
-    "dirtyFiles": 3
+    "dirtyFiles": 3,
+    "stagedFiles": 1,
+    "unstagedFiles": 2
   },
   "diagnostics": {
     "errors": 1,
-    "warnings": 4
+    "warnings": 4,
+    "information": 0,
+    "hints": 0
+  },
+  "task": {
+    "status": "running",
+    "activeCount": 1,
+    "name": "npm: test"
+  },
+  "terminal": {
+    "status": "running",
+    "command": "npm test"
+  },
+  "debug": {
+    "status": "idle",
+    "activeCount": 0
   },
   "activity": {
     "activeFile": "src/app.ts",
-    "lastEvent": "fileSaved"
+    "lastEvent": "taskStarted",
+    "message": "Task started: npm: test",
+    "eventId": "unique-local-id"
   }
 }
 ```
 
 This keeps Codex/CLI integration optional. Any tool can update the state file later without requiring the desktop pet to know where the signal came from.
 
+The `deskpet.state` field is the preferred normalized state. If it is absent, Electron infers a state from task, terminal, debug, diagnostics, and activity fields.
+
+### Local CLI Events
+
+For local testing and future Codex hooks:
+
+```bash
+npm run event -- in_progress "Codex is editing files"
+npm run event -- completed "Task completed"
+npm run event -- error "Tests failed"
+```
+
+This writes `.deskpet/state.json` in the current working directory. `npm start` watches that file by default.
+
+### Codex Adapter Strategy
+
+Do not couple Deskpet to a private UI implementation. Preferred options:
+
+- a Codex hook writes `deskpet.state` and `activity.message` into `.deskpet/state.json`;
+- a wrapper around a JSON/event stream translates agent events into the same state file;
+- project scripts write explicit events through `npm run event -- <state> [message]`.
+
+Suggested Codex-to-Deskpet mapping:
+
+- session/user prompt/turn started: `in_progress`;
+- model reasoning: `thinking`;
+- tool or shell command started: `running_command`;
+- file edit or patch activity: `editing_files`;
+- permission request: `waiting_approval`;
+- turn completed: `completed`;
+- command/tool failure or turn failed: `error`;
+- stop/session end/cancel: `interrupted`.
+
 ## State Machine
 
-Initial pet states:
+Desktop pet modes:
 
 - `idle`
 - `wander`
@@ -183,6 +254,21 @@ Initial pet states:
 - `falling`
 - `celebrate`
 - `alert`
+
+Project logic states:
+
+- `offline`
+- `idle`
+- `editing`
+- `in_progress`
+- `thinking`
+- `running_command`
+- `editing_files`
+- `waiting_approval`
+- `warning`
+- `error`
+- `completed`
+- `interrupted`
 
 Future target interaction states:
 

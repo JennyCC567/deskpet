@@ -43,6 +43,12 @@ contextBridge.exposeInMainWorld("deskpet", {
   click() {
     ipcRenderer.send("deskpet:click");
   },
+  longPress() {
+    ipcRenderer.send("deskpet:long-press");
+  },
+  contextMenu() {
+    ipcRenderer.send("deskpet:context-menu");
+  },
   onState(callback) {
     const listener = (_event, state) => callback(state);
     ipcRenderer.on("deskpet:state", listener);

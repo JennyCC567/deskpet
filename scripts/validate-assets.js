@@ -34,4 +34,48 @@ if (missing.length > 0) {
   fail(`Missing assets:\n${missing.map((item) => `- ${item}`).join("\n")}`);
 }
 
+const invalidRefs = [];
+for (const [groupName, actionNames] of Object.entries(manifest.animationGroups || {})) {
+  if (!Array.isArray(actionNames)) {
+    invalidRefs.push(`animationGroups.${groupName} must be an array`);
+    continue;
+  }
+
+  for (const actionName of actionNames) {
+    if (!manifest.actions[actionName]) {
+      invalidRefs.push(`animationGroups.${groupName}: ${actionName}`);
+    }
+  }
+}
+
+for (const [stateName, actionNames] of Object.entries(manifest.stateMappings || {})) {
+  if (!Array.isArray(actionNames)) {
+    invalidRefs.push(`stateMappings.${stateName} must be an array`);
+    continue;
+  }
+
+  for (const actionName of actionNames) {
+    if (!manifest.actions[actionName]) {
+      invalidRefs.push(`stateMappings.${stateName}: ${actionName}`);
+    }
+  }
+}
+
+for (const [interactionName, actionNames] of Object.entries(manifest.interactionMappings || {})) {
+  if (!Array.isArray(actionNames)) {
+    invalidRefs.push(`interactionMappings.${interactionName} must be an array`);
+    continue;
+  }
+
+  for (const actionName of actionNames) {
+    if (!manifest.actions[actionName]) {
+      invalidRefs.push(`interactionMappings.${interactionName}: ${actionName}`);
+    }
+  }
+}
+
+if (invalidRefs.length > 0) {
+  fail(`Invalid manifest action references:\n${invalidRefs.map((item) => `- ${item}`).join("\n")}`);
+}
+
 console.log(`Asset manifest ok: ${Object.keys(manifest.actions).length} actions.`);

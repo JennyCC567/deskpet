@@ -20,7 +20,10 @@
     startX: 0,
     startY: 0,
     dragStarted: false,
-    bubbleTimer: undefined
+    longPressed: false,
+    longPressTimer: undefined,
+    bubbleTimer: undefined,
+    bubblePinned: false
   };
 
   function assetUrl(file) {
@@ -62,45 +65,68 @@
     pet.style.transform = state.direction < 0 ? "scaleX(-1)" : "scaleX(1)";
   }
 
-  function showBubble(text, durationMs = 2400) {
+  function showBubble(text, durationMs = 2400, pinned = false, logicState = "idle") {
     if (!text) {
       bubble.hidden = true;
       return;
     }
 
     bubble.textContent = text;
+    bubble.dataset.state = logicState;
     bubble.hidden = false;
+    state.bubblePinned = pinned;
     clearTimeout(state.bubbleTimer);
-    state.bubbleTimer = setTimeout(() => {
-      bubble.hidden = true;
-    }, durationMs);
+    if (!pinned && durationMs > 0) {
+      state.bubbleTimer = setTimeout(() => {
+        bubble.hidden = true;
+      }, durationMs);
+    }
   }
 
-  function updateProjectBubble(projectState) {
-    if (!projectState) {
+  function updateBubble(bubbleState) {
+    if (!bubbleState || !bubbleState.visible || !bubbleState.text) {
+      bubble.hidden = true;
+      clearTimeout(state.bubbleTimer);
+      state.bubblePinned = false;
       return;
     }
 
-    const errors = projectState.diagnostics?.errors || 0;
-    const warnings = projectState.diagnostics?.warnings || 0;
-    const dirtyFiles = projectState.git?.dirtyFiles || 0;
+    showBubble(
+      bubbleState.text,
+      bubbleState.durationMs || 2400,
+      Boolean(bubbleState.pinned),
+      bubbleState.state || "idle"
+    );
+  }
 
-    if (errors > 0) {
-      showBubble(`${errors} error${errors === 1 ? "" : "s"}`);
-    } else if (warnings > 0) {
-      showBubble(`${warnings} warning${warnings === 1 ? "" : "s"}`);
-    } else if (dirtyFiles > 0) {
-      showBubble(`${dirtyFiles} changed`);
+  function clearLongPressTimer() {
+    if (state.longPressTimer) {
+      clearTimeout(state.longPressTimer);
+      state.longPressTimer = undefined;
     }
   }
 
   function handlePointerDown(event) {
+    if (event.button === 2) {
+      return;
+    }
+
     state.pointerDown = true;
     state.pointerId = event.pointerId;
     state.startX = event.clientX;
     state.startY = event.clientY;
     state.dragStarted = false;
+    state.longPressed = false;
     stage.setPointerCapture(event.pointerId);
+    clearLongPressTimer();
+    state.longPressTimer = setTimeout(() => {
+      if (!state.pointerDown || state.dragStarted) {
+        return;
+      }
+
+      state.longPressed = true;
+      window.deskpet.longPress();
+    }, 650);
   }
 
   function handlePointerMove(event) {
@@ -115,15 +141,19 @@
     }
 
     state.dragStarted = true;
+    clearLongPressTimer();
     document.body.classList.add("dragging");
     window.deskpet.pointerDown({ x: state.startX, y: state.startY });
   }
 
   function handlePointerUp(event) {
     const wasDrag = state.dragStarted;
+    const wasLongPress = state.longPressed;
     state.pointerDown = false;
     state.pointerId = undefined;
     state.dragStarted = false;
+    state.longPressed = false;
+    clearLongPressTimer();
     document.body.classList.remove("dragging");
 
     try {
@@ -134,6 +164,8 @@
 
     if (wasDrag) {
       window.deskpet.pointerUp();
+    } else if (wasLongPress) {
+      return;
     } else {
       window.deskpet.click();
     }
@@ -147,8 +179,8 @@
       state.action = nextState.action;
       setAction(nextState.action);
     }
-    if (nextState.projectState) {
-      updateProjectBubble(nextState.projectState);
+    if (nextState.bubble) {
+      updateBubble(nextState.bubble);
     }
   });
 
@@ -156,6 +188,10 @@
   stage.addEventListener("pointermove", handlePointerMove);
   stage.addEventListener("pointerup", handlePointerUp);
   stage.addEventListener("pointercancel", handlePointerUp);
+  stage.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+    window.deskpet.contextMenu();
+  });
 
   pet.addEventListener("load", reportReadyOnce, { once: true });
   pet.addEventListener("error", () => {

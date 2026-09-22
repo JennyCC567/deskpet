@@ -2,7 +2,7 @@
 
 Deskpet is a desktop companion project for a transparent puppy pet. The first target is a floating desktop pet that can run on its own, then optionally connect to VS Code, Cursor, or Codex-related project state.
 
-The project is currently in the planning and asset-preparation stage. The puppy assets live in `puppy/` as transparent PNG stills and animated WebP files.
+The puppy assets live in `puppy/` as transparent PNG stills and animated WebP files. The current implementation can run as a local Electron desktop pet and can optionally receive workspace state from VS Code, Cursor, Codex-style hooks, or CLI scripts.
 
 ## Product Direction
 
@@ -27,16 +27,37 @@ Project state adapters
   Optional scripts or local state files for Codex/CLI/task integrations.
 ```
 
+## Animation Groups
+
+The current puppy manifest separates animation into three product layers:
+
+- Idle animations: `music`, `lying`, `accordion`, `autumn`.
+- Interaction animations: click, long press, drag, drop, sleep/wake.
+- Task-coupled animations:
+  - task in progress: `cycling`, `reading`, `reading_alt`;
+  - task completed: `idle_flowers`, `firework`.
+
+The mapping is data-driven in [puppy/manifest.json](/Users/bytedance/Desktop/deskpet/puppy/manifest.json), so new generated actions can be added without changing the Electron state machine.
+
 ## Current Repository
 
 ```text
 deskpet/
+  package.json
+  extension.js
   README.md
   docs/
     asset-guide.md
     desktop-pet-research.md
     product-plan.md
+    state-contract.md
     technical-architecture.md
+  pet-app/
+    index.html
+    main.js
+    preload.js
+    renderer.js
+    styles.css
   puppy/
     manifest.json
     pet_01_flowers.png
@@ -44,28 +65,13 @@ deskpet/
     pet_02_cycling.png
     pet_02_cycling.webp
     ...
+  scripts/
+    event.js
+    start.js
+    status.js
+    stop.js
+    validate-assets.js
 ```
-
-## Planned Runtime Structure
-
-```text
-deskpet/
-  package.json
-  extension.js
-  pet-app/
-    index.html
-    main.js
-    preload.js
-    renderer.js
-    styles.css
-  assets/
-    puppy/
-      manifest.json
-      *.png
-      *.webp
-```
-
-The initial implementation will likely keep using the existing `puppy/` folder, then move or mirror it into `assets/puppy/` once the Electron app skeleton lands.
 
 ## Asset Support
 
@@ -109,6 +115,26 @@ Validate assets and JavaScript syntax:
 npm run check
 ```
 
+Simulate project or Codex events:
+
+```bash
+npm run event -- in_progress "Working on the current task"
+npm run event -- completed "Task completed"
+npm run event -- error "Tests failed"
+```
+
+The local event writer updates `.deskpet/state.json`. `npm start` watches that file by default, and the VS Code/Cursor extension writes the same file when launched from the editor.
+
+## Interactions
+
+- Single click: show current status and play a small reaction.
+- Double click: pin or unpin the status bubble.
+- Triple click: sleep.
+- Long press: show current status.
+- Drag and release: move the pet, then let it drop to the desktop floor.
+- Right click: open the pet menu.
+- Tray icon: show the pet again after hiding it.
+
 ## Roadmap
 
 1. Planning and asset contract
@@ -124,11 +150,12 @@ npm run check
 
 3. Editor bridge
    - Add VS Code/Cursor commands: start, stop, restart, larger, smaller.
-   - Send workspace path, Git dirty count, diagnostics count, and current file.
+   - Send workspace path, Git dirty count, diagnostics count, task state, terminal command state, debug state, and current file.
 
 4. Project-aware reactions
-   - React to errors by spawning catchable targets.
-   - React to successful tests/builds with celebration animations.
+   - React to active tasks with progress animations.
+   - React to successful tests/builds with Flower or Firework animations.
+   - React to errors by showing attention state, then later spawning catchable targets.
    - Add a local `.deskpet/state.json` contract for CLI/Codex-style integrations.
 
 5. Packaging
@@ -140,6 +167,7 @@ npm run check
 - [Product Plan](/Users/bytedance/Desktop/deskpet/docs/product-plan.md)
 - [Technical Architecture](/Users/bytedance/Desktop/deskpet/docs/technical-architecture.md)
 - [Asset Guide](/Users/bytedance/Desktop/deskpet/docs/asset-guide.md)
+- [State Contract](/Users/bytedance/Desktop/deskpet/docs/state-contract.md)
 - [Research Notes](/Users/bytedance/Desktop/deskpet/docs/desktop-pet-research.md)
 
 ## GitHub

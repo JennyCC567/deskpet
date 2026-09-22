@@ -68,6 +68,16 @@
           "minimum": 0,
           "maximum": 320,
           "description": "Distance in pixels between Deskpet and the bottom of the current display."
+        },
+        "deskpet.statusBubble": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show Deskpet status bubbles."
+        },
+        "deskpet.statusBubblePinned": {
+          "type": "boolean",
+          "default": true,
+          "description": "Keep the status bubble visible until the user toggles it."
         }
       }
     }
@@ -77,8 +87,9 @@
     "dev": "node scripts/start.js",
     "stop": "node scripts/stop.js",
     "status": "node scripts/status.js",
+    "event": "node scripts/event.js",
     "validate": "node scripts/validate-assets.js",
-    "check": "npm run validate && node --check extension.js && node --check pet-app/main.js && node --check pet-app/preload.js && node --check pet-app/renderer.js && node --check scripts/start.js && node --check scripts/status.js && node --check scripts/stop.js && node --check scripts/validate-assets.js"
+    "check": "npm run validate && node --check extension.js && node --check pet-app/main.js && node --check pet-app/preload.js && node --check pet-app/renderer.js && node --check scripts/start.js && node --check scripts/status.js && node --check scripts/stop.js && node --check scripts/event.js && node --check scripts/validate-assets.js"
   },
   "devDependencies": {
     "electron": "^44.4.3"

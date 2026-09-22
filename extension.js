@@ -1,4 +1,5 @@
 const childProcess = require("child_process");
+const crypto = require("crypto");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -6,8 +7,54 @@ const vscode = require("vscode");
 
 const PID_FILE = path.join(os.tmpdir(), "deskpet.pid");
 const SCALE_STEP = 0.04;
+const TRANSIENT_STATE_MS = 9000;
 let petProcess;
 let stateTimer;
+let writeQueue = Promise.resolve();
+
+const bridgeState = {
+  activeTasks: new Map(),
+  activeDebugSessions: new Map(),
+  lastTask: undefined,
+  lastTerminal: undefined,
+  lastActivity: {
+    lastEvent: "extensionActivated",
+    message: "Deskpet is watching this workspace.",
+    eventId: createEventId()
+  }
+};
+
+function createEventId() {
+  return crypto.randomBytes(6).toString("hex");
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function isFreshTimestamp(value, maxAgeMs) {
+  const timestamp = Date.parse(value || "");
+  return Number.isFinite(timestamp) && Date.now() - timestamp <= maxAgeMs;
+}
+
+function compactText(text, maxLength = 90) {
+  const value = String(text || "").replace(/\s+/g, " ").trim();
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  return `${value.slice(0, maxLength - 1)}...`;
+}
+
+function updateActivity(lastEvent, message) {
+  bridgeState.lastActivity = {
+    lastEvent,
+    message: compactText(message),
+    eventId: createEventId(),
+    at: nowIso()
+  };
+  scheduleProjectStateWrite();
+}
 
 function readPid() {
   try {
@@ -56,7 +103,9 @@ function getDeskpetConfig() {
     scale: config.get("scale", 0.32),
     speed: config.get("speed", 34),
     bottomMargin: config.get("bottomMargin", 16),
-    launchOnStartup: config.get("launchOnStartup", false)
+    launchOnStartup: config.get("launchOnStartup", false),
+    statusBubble: config.get("statusBubble", true),
+    statusBubblePinned: config.get("statusBubblePinned", true)
   };
 }
 
@@ -78,6 +127,8 @@ function getDiagnosticsSummary() {
   const diagnostics = vscode.languages.getDiagnostics();
   let errors = 0;
   let warnings = 0;
+  let information = 0;
+  let hints = 0;
 
   for (const [, entries] of diagnostics) {
     for (const diagnostic of entries) {
@@ -85,11 +136,15 @@ function getDiagnosticsSummary() {
         errors += 1;
       } else if (diagnostic.severity === vscode.DiagnosticSeverity.Warning) {
         warnings += 1;
+      } else if (diagnostic.severity === vscode.DiagnosticSeverity.Information) {
+        information += 1;
+      } else if (diagnostic.severity === vscode.DiagnosticSeverity.Hint) {
+        hints += 1;
       }
     }
   }
 
-  return { errors, warnings };
+  return { errors, warnings, information, hints };
 }
 
 function getActiveFile() {
@@ -120,9 +175,85 @@ function getGitState(root) {
       const branchLine = lines[0] || "";
       const branch = branchLine.replace(/^##\s*/, "").split("...")[0].trim() || undefined;
       const dirtyFiles = Math.max(0, lines.length - 1);
-      resolve({ branch, dirtyFiles });
+      const stagedFiles = lines.slice(1).filter((line) => line[0] && line[0] !== " " && line[0] !== "?").length;
+      const unstagedFiles = lines.slice(1).filter((line) => !line.startsWith("??") && line[1] && line[1] !== " ").length
+        + lines.slice(1).filter((line) => line.startsWith("??")).length;
+
+      resolve({ branch, dirtyFiles, stagedFiles, unstagedFiles });
     });
   });
+}
+
+function getTaskState() {
+  const activeTasks = Array.from(bridgeState.activeTasks.values());
+  const current = activeTasks[activeTasks.length - 1] || bridgeState.lastTask;
+
+  if (!current) {
+    return {
+      status: "idle",
+      activeCount: 0
+    };
+  }
+
+  return {
+    status: activeTasks.length > 0 ? "running" : current.status,
+    activeCount: activeTasks.length,
+    name: current.name,
+    source: current.source,
+    lastExitCode: current.exitCode,
+    updatedAt: current.updatedAt
+  };
+}
+
+function getTerminalState() {
+  return bridgeState.lastTerminal || {
+    status: "idle"
+  };
+}
+
+function getDebugState() {
+  const activeSessions = Array.from(bridgeState.activeDebugSessions.values());
+  const current = activeSessions[activeSessions.length - 1];
+
+  return {
+    status: activeSessions.length > 0 ? "running" : "idle",
+    activeCount: activeSessions.length,
+    name: current?.name,
+    type: current?.type
+  };
+}
+
+function inferDeskpetState(diagnostics, task, terminal, debug) {
+  if (task.status === "running" || task.activeCount > 0) {
+    return "in_progress";
+  }
+  if (terminal.status === "running") {
+    return "running_command";
+  }
+  if (debug.status === "running" || debug.activeCount > 0) {
+    return "in_progress";
+  }
+  if (task.status === "failed" || terminal.status === "failed") {
+    if (isFreshTimestamp(task.updatedAt, TRANSIENT_STATE_MS) || isFreshTimestamp(terminal.updatedAt, TRANSIENT_STATE_MS)) {
+      return "error";
+    }
+  }
+  if (task.status === "completed" || terminal.status === "completed") {
+    if (isFreshTimestamp(task.updatedAt, TRANSIENT_STATE_MS) || isFreshTimestamp(terminal.updatedAt, TRANSIENT_STATE_MS)) {
+      return "completed";
+    }
+  }
+  if (diagnostics.errors > 0) {
+    return "error";
+  }
+  if (diagnostics.warnings > 0) {
+    return "warning";
+  }
+  if (getActiveFile()) {
+    return "editing";
+  }
+
+  return "idle";
 }
 
 async function writeProjectState() {
@@ -132,15 +263,26 @@ async function writeProjectState() {
     return undefined;
   }
 
+  const diagnostics = getDiagnosticsSummary();
+  const task = getTaskState();
+  const terminal = getTerminalState();
+  const debug = getDebugState();
+  const deskpetState = inferDeskpetState(diagnostics, task, terminal, debug);
   const state = {
     workspacePath: root,
     source: "vscode",
-    timestamp: new Date().toISOString(),
+    timestamp: nowIso(),
+    deskpet: {
+      state: deskpetState
+    },
     git: await getGitState(root),
-    diagnostics: getDiagnosticsSummary(),
+    diagnostics,
+    task,
+    terminal,
+    debug,
     activity: {
       activeFile: getActiveFile(),
-      lastEvent: "stateUpdated"
+      ...bridgeState.lastActivity
     }
   };
 
@@ -149,15 +291,21 @@ async function writeProjectState() {
   return statePath;
 }
 
+function scheduleProjectStateWrite() {
+  writeQueue = writeQueue
+    .catch(() => {})
+    .then(() => writeProjectState())
+    .catch(() => {});
+  return writeQueue;
+}
+
 function startStateWriter() {
   if (stateTimer) {
     return;
   }
 
-  writeProjectState().catch(() => {});
-  stateTimer = setInterval(() => {
-    writeProjectState().catch(() => {});
-  }, 2500);
+  scheduleProjectStateWrite();
+  stateTimer = setInterval(scheduleProjectStateWrite, 2500);
 }
 
 function stopStateWriter() {
@@ -247,16 +395,119 @@ async function updateScale(context, delta) {
   vscode.window.showInformationMessage(`Deskpet size set to ${next}.`);
 }
 
+function taskSnapshot(execution, status, exitCode) {
+  return {
+    name: execution.task.name,
+    source: execution.task.source,
+    status,
+    exitCode,
+    updatedAt: nowIso()
+  };
+}
+
+function registerBridgeListeners(context) {
+  context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor(() => {
+      const activeFile = getActiveFile();
+      updateActivity("activeFileChanged", activeFile ? `Editing: ${activeFile}` : "Editor focus changed.");
+    }),
+    vscode.workspace.onDidSaveTextDocument((document) => {
+      const root = getWorkspaceRoot();
+      const filePath = root ? path.relative(root, document.uri.fsPath) : document.uri.fsPath;
+      updateActivity("fileSaved", `Saved: ${filePath}`);
+    }),
+    vscode.languages.onDidChangeDiagnostics(() => {
+      const diagnostics = getDiagnosticsSummary();
+      if (diagnostics.errors > 0) {
+        updateActivity("diagnosticsChanged", `${diagnostics.errors} error${diagnostics.errors === 1 ? "" : "s"} in workspace.`);
+      } else if (diagnostics.warnings > 0) {
+        updateActivity("diagnosticsChanged", `${diagnostics.warnings} warning${diagnostics.warnings === 1 ? "" : "s"} in workspace.`);
+      } else {
+        updateActivity("diagnosticsChanged", "No diagnostics blocking the workspace.");
+      }
+    }),
+    vscode.tasks.onDidStartTask((event) => {
+      const snapshot = taskSnapshot(event.execution, "running");
+      bridgeState.activeTasks.set(event.execution, snapshot);
+      bridgeState.lastTask = snapshot;
+      updateActivity("taskStarted", `Task started: ${snapshot.name}`);
+    }),
+    vscode.tasks.onDidEndTaskProcess((event) => {
+      const status = event.exitCode === undefined || event.exitCode === 0 ? "completed" : "failed";
+      const snapshot = taskSnapshot(event.execution, status, event.exitCode);
+      bridgeState.activeTasks.delete(event.execution);
+      bridgeState.lastTask = snapshot;
+      updateActivity(
+        status === "completed" ? "taskCompleted" : "taskFailed",
+        event.exitCode === undefined ? `Task finished: ${snapshot.name}` : `${snapshot.name} exited with ${event.exitCode}.`
+      );
+    }),
+    vscode.tasks.onDidEndTask((event) => {
+      if (!bridgeState.activeTasks.has(event.execution)) {
+        return;
+      }
+
+      const snapshot = taskSnapshot(event.execution, "completed");
+      bridgeState.activeTasks.delete(event.execution);
+      bridgeState.lastTask = snapshot;
+      updateActivity("taskCompleted", `Task finished: ${snapshot.name}`);
+    }),
+    vscode.debug.onDidStartDebugSession((session) => {
+      bridgeState.activeDebugSessions.set(session.id, {
+        id: session.id,
+        name: session.name,
+        type: session.type
+      });
+      updateActivity("debugStarted", `Debugging: ${session.name}`);
+    }),
+    vscode.debug.onDidTerminateDebugSession((session) => {
+      bridgeState.activeDebugSessions.delete(session.id);
+      updateActivity("debugEnded", `Debug ended: ${session.name}`);
+    })
+  );
+
+  if (vscode.window.onDidStartTerminalShellExecution && vscode.window.onDidEndTerminalShellExecution) {
+    context.subscriptions.push(
+      vscode.window.onDidStartTerminalShellExecution((event) => {
+        const command = event.execution?.commandLine?.value || event.execution?.commandLine || "";
+        bridgeState.lastTerminal = {
+          status: "running",
+          terminal: event.terminal?.name,
+          command: compactText(command),
+          updatedAt: nowIso()
+        };
+        updateActivity("terminalCommandStarted", command ? `Running: ${command}` : "Terminal command started.");
+      }),
+      vscode.window.onDidEndTerminalShellExecution((event) => {
+        const command = event.execution?.commandLine?.value || event.execution?.commandLine || "";
+        const exitCode = event.exitCode;
+        const status = exitCode === undefined || exitCode === 0 ? "completed" : "failed";
+        bridgeState.lastTerminal = {
+          status,
+          terminal: event.terminal?.name,
+          command: compactText(command),
+          exitCode,
+          updatedAt: nowIso()
+        };
+        updateActivity(
+          status === "completed" ? "terminalCompleted" : "terminalFailed",
+          command ? `Command exited with ${exitCode ?? "unknown"}: ${command}` : `Terminal command exited with ${exitCode ?? "unknown"}.`
+        );
+      })
+    );
+  }
+}
+
 function activate(context) {
   context.subscriptions.push(
     vscode.commands.registerCommand("deskpet.start", () => startDeskpet(context, "command")),
     vscode.commands.registerCommand("deskpet.stop", stopDeskpet),
     vscode.commands.registerCommand("deskpet.restart", () => restartDeskpet(context)),
     vscode.commands.registerCommand("deskpet.larger", () => updateScale(context, SCALE_STEP)),
-    vscode.commands.registerCommand("deskpet.smaller", () => updateScale(context, -SCALE_STEP)),
-    vscode.window.onDidChangeActiveTextEditor(() => writeProjectState().catch(() => {})),
-    vscode.workspace.onDidSaveTextDocument(() => writeProjectState().catch(() => {}))
+    vscode.commands.registerCommand("deskpet.smaller", () => updateScale(context, -SCALE_STEP))
   );
+
+  registerBridgeListeners(context);
 
   setTimeout(() => {
     startDeskpet(context, "startup").catch((error) => {

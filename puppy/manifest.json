@@ -4,10 +4,36 @@
   "version": 1,
   "description": "Transparent puppy assets for the Deskpet desktop companion.",
   "defaultScale": 0.32,
-  "defaultAction": "idle_flowers",
+  "defaultAction": "music",
   "assetSize": {
     "width": 1000,
     "height": 1000
+  },
+  "animationGroups": {
+    "idle": ["music", "lying", "accordion", "autumn"],
+    "interaction": ["idle_flowers", "firework", "cycling"],
+    "taskInProgress": ["cycling", "reading", "reading_alt"],
+    "taskCompleted": ["idle_flowers", "firework"]
+  },
+  "stateMappings": {
+    "offline": ["lying", "music"],
+    "idle": ["music", "lying", "accordion", "autumn"],
+    "editing": ["reading", "reading_alt", "music"],
+    "in_progress": ["cycling", "reading", "reading_alt"],
+    "thinking": ["reading", "reading_alt"],
+    "running_command": ["cycling"],
+    "editing_files": ["reading", "reading_alt"],
+    "waiting_approval": ["reading", "music"],
+    "warning": ["reading_alt", "cycling"],
+    "error": ["cycling"],
+    "completed": ["idle_flowers", "firework"],
+    "interrupted": ["lying"]
+  },
+  "interactionMappings": {
+    "click": ["idle_flowers", "firework"],
+    "drag": ["cycling"],
+    "drop": ["cycling"],
+    "sleep": ["lying"]
   },
   "actions": {
     "idle_flowers": {

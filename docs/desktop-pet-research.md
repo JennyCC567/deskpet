@@ -9,7 +9,7 @@ Build a small desktop pet plugin that:
 - can be started, stopped, and resized from editor commands;
 - shows a transparent floating pet window above the desktop/editor;
 - loads custom sprite assets from this repository;
-- supports idle, walking, dragging/falling, sleeping, and later "bug catching" actions.
+- supports idle, task-coupled, interaction, dragging/falling, sleeping, and later "bug catching" actions.
 
 ## Reference Paths
 
@@ -135,11 +135,11 @@ deskpet/
     desktop-pet-research.md
 ```
 
-The current `puppy/*.png` files can be moved or copied under `assets/puppy/` later. For a first working prototype, we can also use the existing PNGs as static frames instead of requiring full sprite sheets immediately.
+The current implementation keeps the existing `puppy/` folder at the repository root. It can be moved or mirrored under `assets/puppy/` later if packaging requires it.
 
 ## First Version Behavior
 
-Start with a narrow, testable loop:
+Current narrow, testable loop:
 
 1. `Deskpet: Start`
    - VS Code command launches the Electron pet.
@@ -157,8 +157,28 @@ Start with a narrow, testable loop:
    - can be dragged and dropped with gravity.
 5. Art loading
    - `renderer.js` loads a manifest of local PNGs.
-   - If an animation has only one image, loop the image with subtle bobbing.
-   - If later we add sprite sheets, slice them into frames.
+   - Animated WebP is preferred when available.
+   - PNG is used as fallback if an animated asset cannot load.
+6. Project state
+   - VS Code/Cursor writes `.deskpet/state.json`.
+   - `npm run event -- <state> [message]` can write the same contract from the terminal.
+   - Electron normalizes state and selects an animation from the manifest mapping.
+7. Desktop controls
+   - right-click opens hide/show, bubble, manual state, sleep/wake, and quit actions;
+   - tray icon can restore the pet after hiding.
+
+## Current State Sources
+
+The VS Code/Cursor extension can collect:
+
+- diagnostics: errors, warnings, information, and hints;
+- tasks: start/end, active count, name, source, and exit code when available;
+- terminal shell execution: command start/end and exit code when the editor exposes shell integration events;
+- debug: session start/end and active session count;
+- editor: active file changes and saves;
+- Git: branch, dirty file count, staged file count, unstaged file count.
+
+Codex should be integrated as a separate adapter that writes the same `.deskpet/state.json` contract. Good normalized states are `in_progress`, `thinking`, `running_command`, `editing_files`, `waiting_approval`, `completed`, `error`, and `interrupted`.
 
 ## Bug Catching Design
 

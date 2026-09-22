@@ -39,6 +39,17 @@ Each pet has a manifest:
   "displayName": "Puppy",
   "version": 1,
   "defaultScale": 0.32,
+  "animationGroups": {
+    "idle": ["music", "lying"],
+    "interaction": ["idle_flowers", "firework"],
+    "taskInProgress": ["cycling", "reading"],
+    "taskCompleted": ["idle_flowers", "firework"]
+  },
+  "stateMappings": {
+    "idle": ["music", "lying"],
+    "in_progress": ["cycling", "reading"],
+    "completed": ["idle_flowers", "firework"]
+  },
   "actions": {
     "idle": {
       "label": "Idle",
@@ -56,11 +67,30 @@ Field meaning:
 - `id`: stable pet id.
 - `displayName`: name shown in UI.
 - `defaultScale`: first-run visual scale.
+- `animationGroups`: reusable animation pools for product behavior.
+- `stateMappings`: maps logical task/editor states to one or more actions.
+- `interactionMappings`: maps direct user interactions to actions.
 - `actions`: named animation states.
 - `still`: PNG fallback.
 - `animated`: WebP animation.
 - `loop`: whether the action can loop.
 - `weight`: relative chance in random idle rotation.
+
+## Current Puppy Groups
+
+Current groups in `puppy/manifest.json`:
+
+- Idle: `music`, `lying`, `accordion`, `autumn`.
+- Task in progress: `cycling`, `reading`, `reading_alt`.
+- Task completed: `idle_flowers`, `firework`.
+- Interaction: click uses `idle_flowers` or `firework`; drag/drop uses `cycling`; sleep uses `lying`.
+
+When you add new actions, choose the group by product meaning:
+
+- calm ambient poses go into `animationGroups.idle`;
+- direct touch/mouse reactions go into `interactionMappings`;
+- coding, reading, running, waiting, searching, and chase/catch preparation go into task-coupled states;
+- completion, success, flowers, fireworks, and reward animations go into `stateMappings.completed`.
 
 ## Action Naming
 
@@ -86,6 +116,13 @@ Recommended future target actions:
 - `target_miss`
 - `caterpillar_spawn`
 - `caterpillar_catch`
+
+Suggested future caterpillar mapping:
+
+- `caterpillar_spawn`: `warning`, `error`, or a future `target_spawn` state;
+- `caterpillar_chase`: `in_progress` or `running_command`;
+- `caterpillar_catch`: `completed`;
+- `caterpillar_miss`: `error` or `interrupted`.
 
 ## Adding A New Action
 

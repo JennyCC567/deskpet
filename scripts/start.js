@@ -4,6 +4,7 @@ const path = require("path");
 const electronPath = require("electron");
 const appMain = path.resolve(__dirname, "..", "pet-app", "main.js");
 const env = { ...process.env };
+env.DESKPET_PROJECT_STATE_FILE = env.DESKPET_PROJECT_STATE_FILE || path.resolve(process.cwd(), ".deskpet", "state.json");
 delete env.ELECTRON_RUN_AS_NODE;
 
 const child = childProcess.spawn(electronPath, [appMain], {
