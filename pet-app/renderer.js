@@ -7,7 +7,7 @@
   const assetBaseUrl = window.deskpet.assetBaseUrl;
   const sourceWidth = manifest.assetSize?.width || 1000;
   const sourceHeight = manifest.assetSize?.height || sourceWidth;
-  const scale = Number.isFinite(config.scale) ? config.scale : manifest.defaultScale || 0.32;
+  const scale = Number.isFinite(config.scale) ? config.scale : manifest.defaultScale || 0.2;
   const stageWidth = Math.max(96, Math.round(sourceWidth * scale));
   const stageHeight = Math.max(96, Math.round(sourceHeight * scale));
 
