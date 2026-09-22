@@ -28,8 +28,9 @@ Deskpet now treats animation as three layers:
 
 Current puppy mapping:
 
-- Idle: `music`, `lying`, `accordion`, `autumn`.
-- Interaction: click can use `idle_flowers` or `firework`; drag/drop use `cycling`; sleep uses `lying`.
+- Base idle: `sit` and `lie`, with `sit_to_lie` and `lie_to_sit` one-second transitions.
+- Ambient idle: `music`, `accordion`, `autumn`.
+- Interaction: sitting click uses `wave`; lying click uses `petted`; drag uses `lift_up`, looping `sway`, then `put_down`.
 - Task in progress: `cycling`, `reading`, `reading_alt`.
 - Task completed: `idle_flowers`, `firework`.
 
@@ -38,10 +39,13 @@ This keeps the product flexible: one task state can randomly choose from several
 ## Current Interaction Contract
 
 - Single click: show the status bubble and play a short interaction animation.
+- Sitting click: play `wave`.
+- Lying click: play `petted`.
+- Other idle action click: randomly switch idle action.
 - Double click: pin or unpin the status bubble.
 - Triple click: enter sleep mode.
 - Long press: show the current status bubble.
-- Drag: pick up the pet; release to drop it back onto the desktop floor.
+- Drag: play a 1 second lift animation, loop sway while moving, and play a 1 second put-down animation on release.
 - Right click: open the pet menu.
 - Tray icon: restore the pet after it is hidden.
 

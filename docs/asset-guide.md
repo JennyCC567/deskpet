@@ -80,17 +80,46 @@ Field meaning:
 
 Current groups in `puppy/manifest.json`:
 
-- Idle: `music`, `lying`, `accordion`, `autumn`.
+- Base idle: `sit`, `lie`.
+- Idle transitions: `sit_to_lie`, `lie_to_sit`.
+- Ambient idle: `music`, `accordion`, `autumn`.
+- Click interactions: sitting uses `wave`; lying uses `petted`; other idle actions can randomize the idle state.
+- Drag sequence: `lift_up` for 1 second, `sway` loops while dragging, `put_down` for 1 second after release.
 - Task in progress: `cycling`, `reading`, `reading_alt`.
 - Task completed: `idle_flowers`, `firework`.
-- Interaction: click uses `idle_flowers` or `firework`; drag/drop uses `cycling`; sleep uses `lying`.
 
 When you add new actions, choose the group by product meaning:
 
 - calm ambient poses go into `animationGroups.idle`;
-- direct touch/mouse reactions go into `interactionMappings`;
+- direct touch/mouse reactions go into `clickMappings`, `dragSequence`, or `interactionMappings`;
 - coding, reading, running, waiting, searching, and chase/catch preparation go into task-coupled states;
 - completion, success, flowers, fireworks, and reward animations go into `stateMappings.completed`.
+
+For base pose actions, add `pose` to the action:
+
+```json
+{
+  "sit": {
+    "still": "pet_11_ground.png",
+    "pose": "sit",
+    "loop": true
+  }
+}
+```
+
+For one-shot transitions or reactions, add `durationMs` and `nextPose`:
+
+```json
+{
+  "sit_to_lie": {
+    "animated": "sit_to_lie_1s.webp",
+    "loop": false,
+    "durationMs": 1000,
+    "fromPose": "sit",
+    "nextPose": "lie"
+  }
+}
+```
 
 ## Action Naming
 

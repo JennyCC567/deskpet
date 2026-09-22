@@ -18,6 +18,8 @@ const DEFAULT_CONFIG = {
   bottomMargin: 16,
   idleMinMs: 3500,
   idleMaxMs: 9000,
+  baseIdleMinMs: 4500,
+  baseIdleMaxMs: 9500,
   actionMinMs: 5000,
   actionMaxMs: 13000,
   wanderMinMs: 3000,
@@ -78,9 +80,13 @@ const state = {
   direction: 1,
   mode: "idle",
   action: manifest.defaultAction || "music",
+  pose: manifest.defaultPose || "sit",
+  visualRevision: 0,
   timerMs: 2500,
   velocityY: 0,
   dragging: false,
+  dragPhase: "",
+  dragMotionEnabled: false,
   dragOffsetX: 0,
   dragOffsetY: 0,
   sleeping: false,
@@ -210,6 +216,8 @@ function sendState(extra = {}) {
     mode: state.mode,
     logicState: state.logicState,
     action: state.action,
+    pose: state.pose,
+    visualRevision: state.visualRevision,
     direction: state.direction,
     projectState: state.projectState,
     bubble: {
@@ -260,6 +268,23 @@ function weightedAction(entries) {
   }
 
   return available[available.length - 1]?.[0] || state.action;
+}
+
+function resolveAction(actionName) {
+  return manifest.actions?.[actionName];
+}
+
+function actionDuration(actionName, fallbackMs) {
+  const duration = resolveAction(actionName)?.durationMs;
+  return Number.isFinite(duration) && duration >= 0 ? duration : fallbackMs;
+}
+
+function actionPose(actionName) {
+  return resolveAction(actionName)?.pose;
+}
+
+function actionNextPose(actionName) {
+  return resolveAction(actionName)?.nextPose || actionPose(actionName);
 }
 
 function entriesForGroup(groupName) {
@@ -325,6 +350,11 @@ function logicTimerMs(logicState) {
 function setVisual(mode, action, timerMs) {
   state.mode = mode;
   state.action = action || state.action;
+  state.visualRevision += 1;
+  const nextPose = actionNextPose(state.action);
+  if (nextPose) {
+    state.pose = nextPose;
+  }
   state.timerMs = timerMs;
   sendState();
 }
@@ -334,19 +364,68 @@ function beginMappedState(logicState, timerMs = logicTimerMs(logicState)) {
   setVisual(logicState, action, timerMs);
 }
 
+function beginPoseIdle(pose = state.pose, timerMs = randomBetween(config.baseIdleMinMs, config.baseIdleMaxMs)) {
+  const baseEntries = actionEntriesFromNames(manifest.animationGroups?.baseIdle);
+  const action = baseEntries.find(([, item]) => item.pose === pose)?.[0]
+    || baseEntries.find(([, item]) => item.pose)?.[0]
+    || Object.entries(manifest.actions || {}).find(([, item]) => item.pose === pose)?.[0]
+    || manifest.defaultAction
+    || state.action;
+  state.pose = actionPose(action) || pose || state.pose;
+  setVisual("idle", action, timerMs);
+}
+
+function transitionAction(fromPose, toPose) {
+  return manifest.poseTransitions?.[fromPose]?.[toPose];
+}
+
+function beginPoseTransition(toPose) {
+  if (!toPose || toPose === state.pose) {
+    beginPoseIdle(state.pose);
+    return;
+  }
+
+  const action = transitionAction(state.pose, toPose);
+  if (!action || !manifest.actions?.[action]) {
+    beginPoseIdle(toPose);
+    return;
+  }
+
+  setVisual("pose_transition", action, actionDuration(action, 1000));
+}
+
+function chooseNextBaseIdle() {
+  const baseEntries = actionEntriesFromNames(manifest.animationGroups?.baseIdle);
+  const basePoses = baseEntries
+    .map(([name, item]) => item.pose || name)
+    .filter(Boolean);
+  const uniquePoses = Array.from(new Set(basePoses));
+
+  if (uniquePoses.length <= 1) {
+    beginPoseIdle(uniquePoses[0] || state.pose);
+    return;
+  }
+
+  const shouldSwitchPose = Math.random() < 0.58;
+  const nextPose = shouldSwitchPose
+    ? uniquePoses.filter((pose) => pose !== state.pose)[Math.floor(Math.random() * Math.max(1, uniquePoses.length - 1))]
+    : state.pose;
+
+  beginPoseTransition(nextPose || state.pose);
+}
+
 function beginIdle() {
   state.logicState = state.projectState ? state.logicState : "offline";
-  const action = weightedAction(entriesForGroup("idle"));
-  setVisual("idle", action, randomBetween(config.idleMinMs, config.idleMaxMs));
+  chooseNextBaseIdle();
 }
 
 function beginAction() {
-  const action = weightedAction(entriesForGroup("idle"));
+  const action = weightedAction(entriesForGroup("ambientIdle"));
   setVisual("action", action, randomBetween(config.actionMinMs, config.actionMaxMs));
 }
 
 function beginWander() {
-  const action = weightedAction(entriesForGroup("idle"));
+  const action = weightedAction(entriesForGroup("ambientIdle"));
   state.direction = Math.random() < 0.5 ? -1 : 1;
   setVisual("wander", action, randomBetween(config.wanderMinMs, config.wanderMaxMs));
 }
@@ -354,6 +433,53 @@ function beginWander() {
 function beginInteraction(interactionName, timerMs = 2600) {
   const action = weightedAction(entriesForInteraction(interactionName));
   setVisual(`interaction:${interactionName}`, action, timerMs);
+}
+
+function beginClickReaction() {
+  const mappings = manifest.clickMappings || {};
+  const action = weightedAction(actionEntriesFromNames(mappings[state.pose]));
+
+  if (action && resolveAction(action)) {
+    setVisual("click_reaction", action, actionDuration(action, 1800));
+    return;
+  }
+
+  const fallback = weightedAction(actionEntriesFromNames(mappings.default));
+  beginPoseTransition(actionPose(fallback) || fallback || state.pose);
+}
+
+function beginAmbientClickSwitch() {
+  const mappings = manifest.clickMappings || {};
+  const action = weightedAction(actionEntriesFromNames(mappings.ambient || mappings.default));
+  const nextPose = actionPose(action);
+
+  if (nextPose) {
+    beginPoseTransition(nextPose);
+    return;
+  }
+
+  setVisual("action", action, actionDuration(action, randomBetween(config.actionMinMs, config.actionMaxMs)));
+}
+
+function beginDragLift() {
+  const action = manifest.dragSequence?.lift || "lift_up";
+  state.dragPhase = "lift";
+  state.dragMotionEnabled = false;
+  setVisual("drag_lift", action, actionDuration(action, 1000));
+}
+
+function beginDragSway() {
+  const action = manifest.dragSequence?.dragging || "sway";
+  state.dragPhase = "sway";
+  state.dragMotionEnabled = true;
+  setVisual("drag_sway", action, 0);
+}
+
+function beginDragDrop() {
+  const action = manifest.dragSequence?.drop || "put_down";
+  state.dragPhase = "drop";
+  state.dragMotionEnabled = false;
+  setVisual("drag_drop", action, actionDuration(action, 1000));
 }
 
 function beginSleep() {
@@ -729,10 +855,26 @@ function tick() {
   const area = getWorkArea();
   const floorY = getFloorY();
 
-  if (state.dragging) {
+  if (state.dragging && state.dragMotionEnabled) {
     const cursor = screen.getCursorScreenPoint();
     state.x = clamp(cursor.x - state.dragOffsetX, area.x, area.x + area.width - state.width);
     state.y = clamp(cursor.y - state.dragOffsetY, area.y, area.y + area.height - state.height);
+    moveWindow();
+    return;
+  } else if (state.dragging) {
+    state.timerMs -= dt * 1000;
+    if (state.dragPhase === "lift" && state.timerMs <= 0) {
+      beginDragSway();
+    }
+    moveWindow();
+    return;
+  }
+
+  if (state.mode === "drag_drop") {
+    state.timerMs -= dt * 1000;
+    if (state.timerMs <= 0) {
+      beginPoseIdle(manifest.dragSequence?.returnPose || state.pose || manifest.defaultPose);
+    }
     moveWindow();
     return;
   }
@@ -768,6 +910,12 @@ function tick() {
 
   state.timerMs -= dt * 1000;
   if (state.timerMs <= 0) {
+    if (state.mode === "pose_transition" || state.mode === "click_reaction") {
+      beginPoseIdle(state.pose);
+      moveWindow();
+      return;
+    }
+
     chooseNextMode();
   }
 
@@ -1009,11 +1157,13 @@ ipcMain.on("deskpet:pointer-down", (_event, point) => {
   }
 
   state.dragging = true;
+  state.dragPhase = "lift";
+  state.dragMotionEnabled = false;
   state.dragOffsetX = point.x;
   state.dragOffsetY = point.y;
   state.velocityY = 0;
   state.sleeping = false;
-  beginInteraction("drag", 0);
+  beginDragLift();
 });
 
 ipcMain.on("deskpet:pointer-up", () => {
@@ -1022,9 +1172,9 @@ ipcMain.on("deskpet:pointer-up", () => {
   }
 
   state.dragging = false;
+  state.dragMotionEnabled = false;
   state.velocityY = 0;
-  const action = weightedAction(entriesForInteraction("drop"));
-  setVisual("falling", action, 0);
+  beginDragDrop();
 });
 
 ipcMain.on("deskpet:click", () => {
@@ -1043,12 +1193,16 @@ ipcMain.on("deskpet:click", () => {
 
   if (state.clickCount === 2) {
     toggleBubblePin();
-    beginInteraction("click", 1800);
+    beginClickReaction();
     return;
   }
 
   showStatusBubble(2600);
-  beginInteraction("click", 2200);
+  if (state.mode === "idle" && (state.pose === "sit" || state.pose === "lie")) {
+    beginClickReaction();
+  } else {
+    beginAmbientClickSwitch();
+  }
 });
 
 ipcMain.on("deskpet:long-press", () => {

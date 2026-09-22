@@ -74,6 +74,37 @@ for (const [interactionName, actionNames] of Object.entries(manifest.interaction
   }
 }
 
+for (const [fromPose, transitions] of Object.entries(manifest.poseTransitions || {})) {
+  for (const [toPose, actionName] of Object.entries(transitions || {})) {
+    if (!manifest.actions[actionName]) {
+      invalidRefs.push(`poseTransitions.${fromPose}.${toPose}: ${actionName}`);
+    }
+  }
+}
+
+for (const [poseName, actionNames] of Object.entries(manifest.clickMappings || {})) {
+  if (!Array.isArray(actionNames)) {
+    invalidRefs.push(`clickMappings.${poseName} must be an array`);
+    continue;
+  }
+
+  for (const actionName of actionNames) {
+    if (!manifest.actions[actionName]) {
+      invalidRefs.push(`clickMappings.${poseName}: ${actionName}`);
+    }
+  }
+}
+
+for (const [stepName, actionName] of Object.entries(manifest.dragSequence || {})) {
+  if (stepName === "returnPose") {
+    continue;
+  }
+
+  if (!manifest.actions[actionName]) {
+    invalidRefs.push(`dragSequence.${stepName}: ${actionName}`);
+  }
+}
+
 if (invalidRefs.length > 0) {
   fail(`Invalid manifest action references:\n${invalidRefs.map((item) => `- ${item}`).join("\n")}`);
 }

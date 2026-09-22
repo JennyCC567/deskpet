@@ -13,6 +13,7 @@
 
   const state = {
     action: manifest.defaultAction,
+    visualRevision: 0,
     direction: 1,
     reportedReady: false,
     pointerDown: false,
@@ -38,15 +39,18 @@
     return manifest.actions?.[actionName] || manifest.actions?.[manifest.defaultAction];
   }
 
-  function setAction(actionName) {
+  function setAction(actionName, forceReplay = false) {
     const action = resolveAction(actionName);
     if (!action) {
       return;
     }
 
     const src = assetUrl(action.animated || action.still);
-    if (src && pet.src !== src) {
-      pet.src = src;
+    if (src && (forceReplay || pet.src !== src)) {
+      pet.src = "";
+      requestAnimationFrame(() => {
+        pet.src = src;
+      });
     }
     pet.dataset.action = actionName;
   }
@@ -175,7 +179,11 @@
     if (nextState.direction !== undefined) {
       setDirection(nextState.direction);
     }
-    if (nextState.action && nextState.action !== state.action) {
+    if (Number.isFinite(nextState.visualRevision) && nextState.visualRevision !== state.visualRevision) {
+      state.visualRevision = nextState.visualRevision;
+      state.action = nextState.action || state.action;
+      setAction(state.action, true);
+    } else if (nextState.action && nextState.action !== state.action) {
       state.action = nextState.action;
       setAction(nextState.action);
     }

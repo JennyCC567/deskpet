@@ -31,7 +31,7 @@ Project state adapters
 
 The current puppy manifest separates animation into three product layers:
 
-- Idle animations: `music`, `lying`, `accordion`, `autumn`.
+- Idle animations: the two main base poses are `sit` and `lie`, with `sit_to_lie` and `lie_to_sit` one-second transitions. Extra idle actions can still use `music`, `accordion`, and `autumn`.
 - Interaction animations: click, long press, drag, drop, sleep/wake.
 - Task-coupled animations:
   - task in progress: `cycling`, `reading`, `reading_alt`;
@@ -128,10 +128,13 @@ The local event writer updates `.deskpet/state.json`. `npm start` watches that f
 ## Interactions
 
 - Single click: show current status and play a small reaction.
+- If the pet is sitting, single click plays `wave`.
+- If the pet is lying, single click plays `petted`.
+- If the pet is in another idle action, single click randomly switches idle action.
 - Double click: pin or unpin the status bubble.
 - Triple click: sleep.
 - Long press: show current status.
-- Drag and release: move the pet, then let it drop to the desktop floor.
+- Drag and release: play `lift_up`, loop `sway` while moving, then play `put_down`.
 - Right click: open the pet menu.
 - Tray icon: show the pet again after hiding it.
 

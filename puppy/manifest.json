@@ -1,23 +1,48 @@
 {
   "id": "puppy",
   "displayName": "Puppy",
-  "version": 1,
+  "version": 2,
   "description": "Transparent puppy assets for the Deskpet desktop companion.",
   "defaultScale": 0.32,
-  "defaultAction": "music",
+  "defaultAction": "sit",
+  "defaultPose": "sit",
   "assetSize": {
     "width": 1000,
     "height": 1000
   },
   "animationGroups": {
-    "idle": ["music", "lying", "accordion", "autumn"],
-    "interaction": ["idle_flowers", "firework", "cycling"],
+    "baseIdle": ["sit", "lie"],
+    "idle": ["sit", "lie", "music", "accordion", "autumn"],
+    "ambientIdle": ["music", "accordion", "autumn"],
+    "interaction": ["wave", "petted"],
+    "drag": ["lift_up", "sway", "put_down"],
     "taskInProgress": ["cycling", "reading", "reading_alt"],
-    "taskCompleted": ["idle_flowers", "firework"]
+    "taskCompleted": ["idle_flowers", "firework"],
+    "bug": ["caterpillar"]
+  },
+  "poseTransitions": {
+    "sit": {
+      "lie": "sit_to_lie"
+    },
+    "lie": {
+      "sit": "lie_to_sit"
+    }
+  },
+  "clickMappings": {
+    "sit": ["wave"],
+    "lie": ["petted"],
+    "ambient": ["sit", "lie", "music", "accordion", "autumn"],
+    "default": ["sit", "lie"]
+  },
+  "dragSequence": {
+    "lift": "lift_up",
+    "dragging": "sway",
+    "drop": "put_down",
+    "returnPose": "sit"
   },
   "stateMappings": {
-    "offline": ["lying", "music"],
-    "idle": ["music", "lying", "accordion", "autumn"],
+    "offline": ["sit", "lie"],
+    "idle": ["sit", "lie"],
     "editing": ["reading", "reading_alt", "music"],
     "in_progress": ["cycling", "reading", "reading_alt"],
     "thinking": ["reading", "reading_alt"],
@@ -27,22 +52,119 @@
     "warning": ["reading_alt", "cycling"],
     "error": ["cycling"],
     "completed": ["idle_flowers", "firework"],
-    "interrupted": ["lying"]
+    "interrupted": ["lie"]
   },
   "interactionMappings": {
-    "click": ["idle_flowers", "firework"],
-    "drag": ["cycling"],
-    "drop": ["cycling"],
-    "sleep": ["lying"]
+    "click": ["wave", "petted"],
+    "drag": ["sway"],
+    "drop": ["put_down"],
+    "sleep": ["lie"]
   },
   "actions": {
+    "sit": {
+      "label": "Sit",
+      "still": "pet_11_ground.png",
+      "animated": "",
+      "loop": true,
+      "weight": 6,
+      "pose": "sit",
+      "tags": ["idle", "base", "sit"]
+    },
+    "lie": {
+      "label": "Lie",
+      "still": "pet_17_lie.png",
+      "animated": "",
+      "loop": true,
+      "weight": 6,
+      "pose": "lie",
+      "tags": ["idle", "base", "lie", "sleep"]
+    },
+    "sit_to_lie": {
+      "label": "Sit To Lie",
+      "still": "pet_17_lie.png",
+      "animated": "sit_to_lie_1s.webp",
+      "loop": false,
+      "weight": 0,
+      "durationMs": 1000,
+      "fromPose": "sit",
+      "nextPose": "lie",
+      "tags": ["transition", "idle"]
+    },
+    "lie_to_sit": {
+      "label": "Lie To Sit",
+      "still": "pet_11_ground.png",
+      "animated": "lie_to_sit_1s.webp",
+      "loop": false,
+      "weight": 0,
+      "durationMs": 1000,
+      "fromPose": "lie",
+      "nextPose": "sit",
+      "tags": ["transition", "idle"]
+    },
+    "wave": {
+      "label": "Wave",
+      "still": "pet_11_ground.png",
+      "animated": "pet_12_wave.webp",
+      "loop": false,
+      "weight": 0,
+      "durationMs": 1800,
+      "fromPose": "sit",
+      "nextPose": "sit",
+      "tags": ["interaction", "click", "sit"]
+    },
+    "petted": {
+      "label": "Petted",
+      "still": "pet_17_lie.png",
+      "animated": "pet_13_petted.webp",
+      "loop": false,
+      "weight": 0,
+      "durationMs": 1800,
+      "fromPose": "lie",
+      "nextPose": "lie",
+      "tags": ["interaction", "click", "lie"]
+    },
+    "lift_up": {
+      "label": "Lift Up",
+      "still": "pet_11_ground.png",
+      "animated": "lift_up_1s.webp",
+      "loop": false,
+      "weight": 0,
+      "durationMs": 1000,
+      "tags": ["interaction", "drag", "lift"]
+    },
+    "sway": {
+      "label": "Sway",
+      "still": "pet_11_ground.png",
+      "animated": "pet_16_sway.webp",
+      "loop": true,
+      "weight": 0,
+      "tags": ["interaction", "drag"]
+    },
+    "put_down": {
+      "label": "Put Down",
+      "still": "pet_11_ground.png",
+      "animated": "put_down_1s.webp",
+      "loop": false,
+      "weight": 0,
+      "durationMs": 1000,
+      "nextPose": "sit",
+      "tags": ["interaction", "drag", "drop"]
+    },
+    "caterpillar": {
+      "label": "Caterpillar",
+      "still": "",
+      "animated": "pet_10_caterpillar.webp",
+      "loop": true,
+      "weight": 0,
+      "tags": ["bug", "target"]
+    },
     "idle_flowers": {
       "label": "Flowers",
       "still": "pet_01_flowers.png",
       "animated": "pet_01_flowers.webp",
       "loop": true,
       "weight": 4,
-      "tags": ["idle", "gentle"]
+      "tags": ["idle", "gentle", "complete"]
     },
     "cycling": {
       "label": "Cycling",
@@ -66,15 +188,15 @@
       "animated": "pet_04_music.webp",
       "loop": true,
       "weight": 2,
-      "tags": ["idle", "happy"]
+      "tags": ["idle", "ambient", "happy"]
     },
     "lying": {
-      "label": "Lying",
+      "label": "Legacy Lying",
       "still": "pet_05_lying.png",
       "animated": "pet_05_lying.webp",
       "loop": true,
-      "weight": 3,
-      "tags": ["rest", "sleep"]
+      "weight": 1,
+      "tags": ["legacy", "rest"]
     },
     "accordion": {
       "label": "Accordion",
@@ -82,7 +204,7 @@
       "animated": "pet_06_accordion.webp",
       "loop": true,
       "weight": 2,
-      "tags": ["music", "happy"]
+      "tags": ["idle", "ambient", "music", "happy"]
     },
     "autumn": {
       "label": "Autumn",
@@ -90,7 +212,7 @@
       "animated": "pet_07_autumn.webp",
       "loop": true,
       "weight": 1,
-      "tags": ["seasonal", "idle"]
+      "tags": ["seasonal", "idle", "ambient"]
     },
     "firework": {
       "label": "Firework",
@@ -98,7 +220,8 @@
       "animated": "pet_08_firework.webp",
       "loop": false,
       "weight": 1,
-      "tags": ["celebrate", "success"]
+      "durationMs": 2400,
+      "tags": ["celebrate", "success", "complete"]
     },
     "reading_alt": {
       "label": "Reading Alt",
@@ -112,7 +235,7 @@
   "plannedActions": {
     "caterpillar_spawn": {
       "label": "Caterpillar Spawn",
-      "status": "waiting_for_assets"
+      "status": "available_as_caterpillar_loop"
     },
     "caterpillar_chase": {
       "label": "Caterpillar Chase",
