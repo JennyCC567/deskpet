@@ -55,7 +55,7 @@
         },
         "deskpet.scale": {
           "type": "number",
-          "default": 0.32,
+          "default": 0.26,
           "minimum": 0.12,
           "maximum": 0.8,
           "description": "Scale applied to the source pet artwork."

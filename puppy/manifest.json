@@ -3,7 +3,7 @@
   "displayName": "Puppy",
   "version": 5,
   "description": "Transparent puppy assets for the Deskpet desktop companion.",
-  "defaultScale": 0.32,
+  "defaultScale": 0.26,
   "defaultAction": "sit",
   "defaultPose": "sit",
   "assetSize": {

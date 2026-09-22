@@ -101,7 +101,7 @@ function getDeskpetConfig() {
   return {
     petId: "puppy",
     petDir: "puppy",
-    scale: config.get("scale", 0.32),
+    scale: config.get("scale", 0.26),
     speed: config.get("speed", 34),
     bottomMargin: config.get("bottomMargin", 16),
     launchOnStartup: config.get("launchOnStartup", false),
@@ -431,7 +431,7 @@ async function restartDeskpet(context) {
 
 async function updateScale(context, delta) {
   const config = vscode.workspace.getConfiguration("deskpet");
-  const current = config.get("scale", 0.32);
+  const current = config.get("scale", 0.26);
   const next = Math.min(0.8, Math.max(0.12, Number((current + delta).toFixed(2))));
   await config.update("scale", next, vscode.ConfigurationTarget.Global);
   await restartDeskpet(context);

@@ -20,7 +20,7 @@ const appRoot = process.env.DESKPET_ROOT || path.resolve(__dirname, "..");
 const config = {
   petId: "puppy",
   petDir: "puppy",
-  scale: 0.32,
+  scale: 0.26,
   ...readConfig()
 };
 const petDir = path.join(appRoot, config.petDir);
