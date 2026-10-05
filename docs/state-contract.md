@@ -112,14 +112,24 @@ npm run event -- bug_hunt "Caterpillar spotted"
 
 ## Codex Mapping
 
-Keep Codex integration as an adapter that writes this file. Recommended mapping:
+Keep Codex integration as an adapter that writes this file. Current mapping:
 
-- prompt submitted or turn started: `in_progress`;
-- model reasoning: `thinking`;
-- tool/shell command started: `running_command`;
-- file write or patch applied: `editing_files`;
-- permission requested: `waiting_approval`;
-- explicit bug/target event: `bug_hunt`;
+- prompt submitted or turn started: `thinking`;
+- model reasoning: `thinking`, which uses the reading-style working animations;
+- tool/shell command started: `running_command`, which uses the cycling-style working animation;
+- file write or patch applied: `editing_files`, which uses the cycling-style working animation;
+- permission requested or user intervention needed: `waiting_approval`, which uses the debug caterpillar animation;
+- explicit bug/target event: `bug_hunt`, which uses the debug caterpillar animation;
 - turn completed: `completed`;
-- turn failed or command failed: `error`;
+- turn failed or command failed: `error`, which uses the debug caterpillar animation;
 - stop/session end/cancel: `interrupted`.
+
+## Host Adapters
+
+Deskpet does not depend on one editor or agent implementation. Each host owns only its adapter:
+
+- VS Code/Cursor adapter: `extension.js` collects editor state and writes `.deskpet/state.json`.
+- Codex adapter: `hooks.json` runs `hooks/deskpet-state.js`, which writes `.deskpet/state.json`.
+- Other agents: any local process can write the same JSON fields.
+
+This keeps the desktop pet runtime portable. A host should not call Electron internals directly; it should update the state contract.

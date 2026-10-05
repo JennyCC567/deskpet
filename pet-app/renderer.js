@@ -8,14 +8,19 @@
   const sourceWidth = manifest.assetSize?.width || 1000;
   const sourceHeight = manifest.assetSize?.height || sourceWidth;
   const scale = Number.isFinite(config.scale) ? config.scale : manifest.defaultScale || 0.15;
-  const stageWidth = Math.max(96, Math.round(sourceWidth * scale));
-  const stageHeight = Math.max(96, Math.round(sourceHeight * scale));
+  const petWidth = Math.max(96, Math.round(sourceWidth * scale));
+  const petHeight = Math.max(96, Math.round(sourceHeight * scale));
+  const bubbleGap = 4;
+  const bubbleReserveHeight = 32;
+  let stageWidth = petWidth;
+  let stageHeight = petHeight + bubbleReserveHeight + bubbleGap;
 
   const state = {
     action: manifest.defaultAction,
     visualVariant: "still",
     visualRevision: 0,
     direction: 1,
+    sleeping: false,
     reportedReady: false,
     pointerDown: false,
     pointerId: undefined,
@@ -74,6 +79,18 @@
     window.deskpet.ready({ width: stageWidth, height: stageHeight });
   }
 
+  function updateStageSize() {
+    const bubbleHeight = bubble.hidden ? 0 : Math.ceil(bubble.getBoundingClientRect().height) + bubbleGap;
+    const nextHeight = petHeight + Math.max(bubbleReserveHeight, bubbleHeight);
+    if (nextHeight === stageHeight) {
+      return;
+    }
+
+    stageHeight = nextHeight;
+    stage.style.height = `${stageHeight}px`;
+    window.deskpet.resize({ width: stageWidth, height: stageHeight });
+  }
+
   function setDirection(direction) {
     state.direction = direction < 0 ? -1 : 1;
     pet.style.transform = state.direction < 0 ? "scaleX(-1)" : "scaleX(1)";
@@ -88,11 +105,13 @@
     bubble.textContent = text;
     bubble.dataset.state = logicState;
     bubble.hidden = false;
+    updateStageSize();
     state.bubblePinned = pinned;
     clearTimeout(state.bubbleTimer);
     if (!pinned && durationMs > 0) {
       state.bubbleTimer = setTimeout(() => {
         bubble.hidden = true;
+        updateStageSize();
       }, durationMs);
     }
   }
@@ -102,6 +121,7 @@
       bubble.hidden = true;
       clearTimeout(state.bubbleTimer);
       state.bubblePinned = false;
+      updateStageSize();
       return;
     }
 
@@ -143,6 +163,14 @@
     state.longPressed = false;
     stage.setPointerCapture(event.pointerId);
     clearLongPressTimer();
+    if (state.sleeping) {
+      state.longPressed = true;
+      state.dragStarted = true;
+      document.body.classList.add("dragging");
+      beginNativeDrag();
+      return;
+    }
+
     state.longPressTimer = setTimeout(() => {
       if (!state.pointerDown || state.dragStarted) {
         return;
@@ -201,6 +229,7 @@
   }
 
   window.deskpet.onState((nextState) => {
+    state.sleeping = Boolean(nextState.sleeping);
     if (nextState.direction !== undefined) {
       setDirection(nextState.direction);
     }
@@ -245,8 +274,8 @@
 
   stage.style.width = `${stageWidth}px`;
   stage.style.height = `${stageHeight}px`;
-  pet.style.width = `${stageWidth}px`;
-  pet.style.height = `${stageHeight}px`;
+  pet.style.width = `${petWidth}px`;
+  pet.style.height = `${petHeight}px`;
   setAction(state.action, state.visualVariant, state.visualRevision);
 
   if (pet.complete) {

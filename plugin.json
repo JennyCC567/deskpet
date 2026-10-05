@@ -1,0 +1,33 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "deskpet",
+  "version": "0.1.0",
+  "description": "A local desktop pet runtime with adapters for VS Code, Cursor, Codex, and other AI coding tools.",
+  "author": {
+    "name": "Deskpet contributors"
+  },
+  "repository": "https://github.com/JennyCC567/deskpet.git",
+  "license": "MIT",
+  "keywords": [
+    "desktop-pet",
+    "codex",
+    "vscode",
+    "cursor",
+    "agent-plugin"
+  ],
+  "extensions": {
+    "com.openai.codex": {
+      "manifest": "./.codex-plugin/plugin.json",
+      "hooks": "./hooks.json",
+      "install": "npm run install:codex-hooks -- --trust"
+    },
+    "com.visualstudio.code": {
+      "manifest": "./package.json",
+      "package": "npm run package:vscode"
+    },
+    "com.deskpet.state": {
+      "path": "./.deskpet/state.json",
+      "schema": "./docs/state-contract.md"
+    }
+  }
+}

@@ -50,8 +50,8 @@ Each pet has a manifest:
   "defaultPose": "sit",
   "animationGroups": {
     "baseIdle": ["sit", "lie"],
-    "idle": ["sit", "lie", "music", "lying", "accordion", "autumn"],
-    "ambientIdle": ["music", "lying", "accordion", "autumn"],
+    "idle": ["sit", "lie", "music", "accordion", "autumn"],
+    "ambientIdle": ["music", "accordion", "autumn"],
     "interaction": ["wave", "petted"],
     "drag": ["sit_lift_up", "lie_lift_up", "sway", "put_down"],
     "taskInProgress": ["cycling", "reading", "reading_alt"],
@@ -65,7 +65,7 @@ Each pet has a manifest:
   "clickMappings": {
     "sit": ["wave"],
     "lie": ["petted"],
-    "ambient": ["sit", "lie", "music", "lying", "accordion", "autumn"]
+    "ambient": ["sit", "lie", "music", "accordion", "autumn"]
   },
   "dragSequence": {
     "liftByPose": {
@@ -127,7 +127,8 @@ Current groups in `puppy/manifest.json`:
 
 - Base idle: `sit`, `lie`.
 - Idle transitions: `sit_to_lie`, `lie_to_sit`.
-- Ambient idle: `music`, `lying`, `accordion`, `autumn`.
+- Ambient idle: `music`, `accordion`, `autumn`.
+- Sleep: the `pet_05` animation chain is reserved for explicit sleep and wake behavior.
 - Click interactions: sitting uses `wave`; lying uses `petted`; other idle actions can randomize the idle state.
 - Drag sequence: `sit_lift_up` or `lie_lift_up` first, `sway` loops while dragging, `put_down` plays after release and returns to `sit`.
 - Task in progress: `cycling`, `reading`, `reading_alt`.

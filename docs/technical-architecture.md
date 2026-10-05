@@ -239,13 +239,13 @@ Do not couple Deskpet to a private UI implementation. Preferred options:
 
 Suggested Codex-to-Deskpet mapping:
 
-- session/user prompt/turn started: `in_progress`;
-- model reasoning: `thinking`;
-- tool or shell command started: `running_command`;
-- file edit or patch activity: `editing_files`;
-- permission request: `waiting_approval`;
-- turn completed: `completed`;
-- command/tool failure or turn failed: `error`;
+- session start: `idle`;
+- user prompt submitted or model reasoning: `thinking`, shown with the reading working animations;
+- tool or shell command started: `running_command`, shown with the cycling working animation;
+- file edit or patch activity: `editing_files`, shown with the cycling working animation;
+- permission request, notification, or user intervention needed: `waiting_approval`, shown with the caterpillar debug animation;
+- command/tool failure or turn failed: `error`, shown with the caterpillar debug animation;
+- turn completed normally: `completed`, shown with flowers or firework;
 - stop/session end/cancel: `interrupted`.
 
 ## State Machine
@@ -290,6 +290,8 @@ Drag is handled as a special interaction chain:
 ```text
 sit_lift_up or lie_lift_up -> sway loop while dragging -> put_down -> sit
 ```
+
+Sleep mode is a separate user-controlled mode. Awake idle rotations exclude the Pet 05 sleep group; sleep mode uses `lying` with its enter/exit animations. Dragging while sleeping is direct window movement and does not play lift, sway, or drop animations.
 
 Future target interaction states:
 

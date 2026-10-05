@@ -78,7 +78,15 @@ function stateToTaskStatus(state) {
   if (state === "error") {
     return "failed";
   }
-  if (state === "in_progress" || state === "thinking" || state === "editing_files" || state === "bug_hunt") {
+  if (
+    state === "in_progress"
+    || state === "thinking"
+    || state === "running_command"
+    || state === "editing_files"
+    || state === "waiting_approval"
+    || state === "warning"
+    || state === "bug_hunt"
+  ) {
     return "running";
   }
 

@@ -25,6 +25,9 @@ body.dragging #stage {
 
 #pet {
   display: block;
+  position: absolute;
+  left: 0;
+  top: 0;
   object-fit: contain;
   object-position: center bottom;
   -webkit-user-drag: none;
@@ -35,7 +38,7 @@ body.dragging #stage {
 #bubble {
   position: absolute;
   z-index: 2;
-  top: 8px;
+  bottom: 0;
   left: 50%;
   max-width: calc(100% - 24px);
   padding: 7px 10px;

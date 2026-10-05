@@ -1,0 +1,32 @@
+{
+  "name": "deskpet-codex-bridge",
+  "version": "0.1.0+codex.20260927140612",
+  "description": "Send Codex lifecycle events to the local Deskpet desktop companion.",
+  "author": {
+    "name": "Deskpet contributors"
+  },
+  "repository": "https://github.com/JennyCC567/deskpet.git",
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "hooks",
+    "desktop-pet"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Deskpet Codex Bridge",
+    "shortDescription": "Animate a local desktop pet from Codex task state.",
+    "longDescription": "Translates Codex lifecycle hooks into the local Deskpet state file so the desktop pet can react while Codex thinks, runs commands, edits files, waits for approval, completes, or fails.",
+    "developerName": "Deskpet contributors",
+    "category": "Productivity",
+    "capabilities": [
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Connect Deskpet to this Codex session.",
+      "Show Codex task status in Deskpet.",
+      "Start the Deskpet preview."
+    ],
+    "brandColor": "#6BA7FF"
+  }
+}

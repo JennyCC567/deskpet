@@ -4,6 +4,52 @@ Deskpet is a desktop companion project for a transparent puppy pet. The first ta
 
 The puppy assets live in `puppy/` as transparent base-pose PNG stills and animated WebP files. The current implementation can run as a local Electron desktop pet and can optionally receive workspace state from VS Code, Cursor, Codex-style hooks, or CLI scripts.
 
+## Quick Start
+
+Clone the project, install dependencies, and start the standalone desktop pet:
+
+```bash
+git clone https://github.com/JennyCC567/deskpet.git
+cd deskpet
+npm install
+npm start -- --detach
+npm run status
+```
+
+Use Deskpet with Codex in two different ways:
+
+```bash
+# Install both Codex integrations for this project.
+npm run install:codex
+
+# Or install only the full external Deskpet bridge.
+npm run install:codex-bridge -- --trust
+
+# Or install only the lightweight native Codex pet skin.
+npm run install:codex-native-pet
+```
+
+The two Codex tracks are intentionally different:
+
+- **Codex native pet skin** changes Codex's built-in pet picker to a lightweight `custom:puppy` avatar.
+- **Deskpet bridge** keeps the full floating desktop pet and lets Codex task state drive its animations through `.deskpet/state.json`.
+
+For VS Code or Cursor, package the extension and install the generated VSIX from the editor:
+
+```bash
+npm run package:vscode
+```
+
+The VSIX is a lightweight controller package and does not bundle Electron's full desktop runtime. For cloned repository development, `npm install` provides Electron automatically. For a standalone VSIX install, set `deskpet.electronPath` in VS Code/Cursor settings, or set `DESKPET_ELECTRON_PATH`, to an Electron executable on the user's machine.
+
+For local testing without Codex or an editor:
+
+```bash
+npm run event -- thinking "Codex is thinking"
+npm run event -- running_command "Running tests" --command "npm test"
+npm run event -- completed "Task completed"
+```
+
 ## Product Direction
 
 Deskpet should feel closer to a terminal or desktop companion than a VS Code panel widget:
@@ -40,7 +86,7 @@ The current puppy manifest separates animation into three product layers:
 
 Non-looping WebP actions are treated as playback units: Deskpet plays the optional entry WebP, then repeats the main WebP directly for 2-5 cycles when `repeatMin`/`repeatMax` are set, then plays the optional exit WebP and settles back to `sit` or `lie`. Dragging is the main exception: `sway` loops while the pet is being moved.
 
-The mapping is data-driven in [puppy/manifest.json](/Users/bytedance/Desktop/deskpet/puppy/manifest.json), so new generated actions can be added without changing the Electron state machine.
+The mapping is data-driven in [puppy/manifest.json](puppy/manifest.json), so new generated actions can be added without changing the Electron state machine.
 
 ## Current Repository
 
@@ -49,6 +95,8 @@ deskpet/
   package.json
   extension.js
   README.md
+  hooks.json
+  plugin.json
   docs/
     asset-guide.md
     desktop-pet-research.md
@@ -76,10 +124,19 @@ deskpet/
     ...
   scripts/
     event.js
+    install-codex.js
+    install-codex-hooks.js
+    install-codex-pet.js
     start.js
     status.js
     stop.js
     validate-assets.js
+  hooks/
+    deskpet-state.js
+  .codex-plugin/
+    plugin.json
+  skills/
+    deskpet-codex-bridge/SKILL.md
 ```
 
 ## Asset Support
@@ -90,7 +147,7 @@ Supported from the start:
 - transparent animated WebP for one-shot actions, repeated action units, transitions, and explicit loops;
 - later: sprite sheets or PNG frame sequences for frame-accurate interactions.
 
-Current assets are described in [puppy/manifest.json](/Users/bytedance/Desktop/deskpet/puppy/manifest.json). See [docs/asset-guide.md](/Users/bytedance/Desktop/deskpet/docs/asset-guide.md) before adding new actions.
+Current assets are described in [puppy/manifest.json](puppy/manifest.json). See [docs/asset-guide.md](docs/asset-guide.md) before adding new actions.
 
 ## Local Development
 
@@ -145,6 +202,108 @@ The extension supports three bridge modes through `Deskpet: Select Bridge Mode` 
 
 Codex and Claude Code should integrate through the same local JSON contract instead of coupling directly to their UI internals. For local testing, `npm run event -- <state> [message]` writes that contract.
 
+## Host Adapters
+
+Deskpet is designed as a desktop runtime plus thin host adapters:
+
+- VS Code/Cursor use `package.json` and `extension.js` to launch the pet and write editor state.
+- Codex uses `.codex-plugin/plugin.json` for plugin metadata and `hooks.json` plus `hooks/deskpet-state.js` to translate lifecycle events.
+- Other AI tools can integrate by writing the same `.deskpet/state.json` contract.
+
+The root `plugin.json` is intentionally kept as generic package metadata for non-Codex hosts. Codex-specific plugin metadata lives in `.codex-plugin/plugin.json`.
+
+## Codex Hooks
+
+Deskpet supports two Codex integration tracks that can be installed together:
+
+- **Codex native pet skin**: installs a lightweight `custom:puppy` avatar into Codex's own pet picker. This uses Codex's fixed 8x11 spritesheet states and cannot read Deskpet's full interaction manifest.
+- **Deskpet bridge**: installs Codex hooks that write `.deskpet/state.json`. The standalone Deskpet Electron app reads that file and keeps the full Deskpet behavior: idle rotation, click reactions, sleep/wake, drag lift/drop, and the custom task-state mappings.
+
+Install both tracks for the current project:
+
+```bash
+npm run install:codex
+```
+
+Install only the Codex native pet skin:
+
+```bash
+npm run install:codex-native-pet
+```
+
+This writes `~/.codex/pets/puppy/pet.json`, `~/.codex/pets/puppy/spritesheet.webp`, and selects `custom:puppy` in `~/.codex/config.toml`.
+
+Install only the Deskpet hook bridge:
+
+```bash
+npm run install:codex-bridge -- --trust
+```
+
+The portable hook adapter is committed in the repository:
+
+```text
+hooks.json
+hooks/deskpet-state.js
+```
+
+Running `npm run install:codex-hooks -- --trust` generates a local `.codex/hooks.json` and `.codex/hooks/deskpet-state.js` with absolute paths for the current machine. That generated `.codex/` directory is intentionally ignored by Git.
+
+When this project is trusted by Codex, the hooks translate real Codex lifecycle events into `.deskpet/state.json`:
+
+- user prompt submitted: `thinking`;
+- tool or shell command starting: `running_command`;
+- file edit or patch starting: `editing_files`;
+- permission request: `waiting_approval`;
+- failed shell/tool result: `error`;
+- turn stopped normally: `completed`;
+- interrupted turn: `interrupted`.
+
+Install or refresh project-local Codex hooks:
+
+```bash
+npm run install:codex-hooks -- --trust
+```
+
+Install the same hooks globally for all Codex projects:
+
+```bash
+npm run install:codex-hooks -- --global --trust
+```
+
+Open `/hooks` in Codex to review the hooks if trust still needs confirmation. After that, start Deskpet with `npm start` and use Codex in this repository. The running desktop pet will react to Codex's real hook events through the same `.deskpet/state.json` bridge.
+
+Important limitation: Codex's native pet renderer does not support Deskpet's custom `clickMappings`, `dragSequence`, `sleep` state, or idle carousel. Those behaviors are available in the standalone Deskpet runtime.
+
+The native pet skin installer builds an 8x11 WebP spritesheet. It tries to use a local `sharp` install first, then Codex Desktop's bundled `sharp` on macOS. If native skin installation cannot load `sharp`, run `npm install sharp --save-dev` and retry, or use the Deskpet bridge without the native skin.
+
+If you have another copy of Deskpet running, restart the standalone runtime from the project you want to test. `npm run status` prints the running app path and watched state file so you can confirm it is using the expected workspace.
+
+## Packaging
+
+For a VS Code/Cursor extension package:
+
+```bash
+npm run package:vscode
+```
+
+The VSIX excludes `node_modules` so it does not ship a 500MB Electron runtime. Package distribution should pair the controller extension with either a documented local `npm install` flow, a configured `deskpet.electronPath`, or a future dedicated desktop installer.
+
+For a Codex plugin package:
+
+```text
+.codex-plugin/plugin.json
+skills/deskpet-codex-bridge/SKILL.md
+hooks.json
+hooks/deskpet-state.js
+scripts/install-codex-hooks.js
+scripts/install-codex-pet.js
+scripts/install-codex.js
+```
+
+The Codex plugin manifest is kept validator-compatible, while `hooks.json` is shipped as the installable hook artifact. Because hook commands and native pet files need machine-local paths, users should run `npm run install:codex` after installing or cloning Deskpet.
+
+Do not publish `.codex/`, `.deskpet/`, generated `.vsix` files, or extracted Codex app bundles. The repository keeps source manifests and install scripts portable; local generated files are rebuilt on each user's machine.
+
 ## Interactions
 
 - Single click: show current status and play a small reaction.
@@ -187,11 +346,11 @@ Codex and Claude Code should integrate through the same local JSON contract inst
 
 ## Documentation
 
-- [Product Plan](/Users/bytedance/Desktop/deskpet/docs/product-plan.md)
-- [Technical Architecture](/Users/bytedance/Desktop/deskpet/docs/technical-architecture.md)
-- [Asset Guide](/Users/bytedance/Desktop/deskpet/docs/asset-guide.md)
-- [State Contract](/Users/bytedance/Desktop/deskpet/docs/state-contract.md)
-- [Research Notes](/Users/bytedance/Desktop/deskpet/docs/desktop-pet-research.md)
+- [Product Plan](docs/product-plan.md)
+- [Technical Architecture](docs/technical-architecture.md)
+- [Asset Guide](docs/asset-guide.md)
+- [State Contract](docs/state-contract.md)
+- [Research Notes](docs/desktop-pet-research.md)
 
 ## GitHub
 

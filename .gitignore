@@ -5,3 +5,7 @@ build/
 .env
 .env.*
 .deskpet/
+.codex/
+*.vsix
+codex-pet-assets-*.js
+pet-content-*.js

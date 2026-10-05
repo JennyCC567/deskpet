@@ -29,8 +29,8 @@ Deskpet now treats animation as three layers:
 Current puppy mapping:
 
 - Base idle: `sit` and `lie`, with `sit_to_lie` and `lie_to_sit` one-second transitions.
-- Ambient idle: `music`, `lying`, `accordion`, `autumn`, with optional enter/exit transitions.
-- Interaction: sitting click uses `wave`; lying click uses `petted`; drag uses pose-specific lift, looping `sway`, then `put_down`.
+- Ambient idle: `music`, `accordion`, `autumn`, with optional enter/exit transitions.
+- Interaction: sitting click uses `wave`; lying click uses `petted`; sleep uses the dedicated `pet_05` lying animation chain; drag uses pose-specific lift, looping `sway`, then `put_down`.
 - Task in progress: `cycling`, `reading`, `reading_alt`.
 - Task completed: random `flowers` or `firework`.
 - Special task state: `bug_hunt` alternates `caterpillar` and `poke_bug`.
@@ -107,7 +107,7 @@ Example reactions:
 - task ended with exit code 0: play a completed animation;
 - task ended with non-zero exit code: show error state;
 - terminal shell command started/ended: show running/completed/error when supported by the editor API;
-- long idle time: sleep action.
+- explicit user sleep action through the context menu or triple-click.
 
 ## Future Interaction Ideas
 

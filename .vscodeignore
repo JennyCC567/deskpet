@@ -1,0 +1,12 @@
+.git/**
+.codex/**
+.DS_Store
+**/.DS_Store
+.deskpet/**
+*.vsix
+**/*.vsix
+node_modules/**
+codex-pet-assets-*.js
+pet-content-*.js
+npm-debug.log
+yarn-error.log

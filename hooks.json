@@ -1,0 +1,111 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "DESKPET_HOOK_EVENT=\"SessionStart\" node \"./hooks/deskpet-state.js\"",
+            "timeout": 3,
+            "statusMessage": "Deskpet: session ready"
+          }
+        ],
+        "matcher": "startup|resume"
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "DESKPET_HOOK_EVENT=\"UserPromptSubmit\" node \"./hooks/deskpet-state.js\"",
+            "timeout": 3,
+            "statusMessage": "Deskpet: thinking"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "DESKPET_HOOK_EVENT=\"PreToolUse\" node \"./hooks/deskpet-state.js\"",
+            "timeout": 3,
+            "statusMessage": "Deskpet: working"
+          }
+        ],
+        "matcher": "Bash|exec_command|functions.exec_command|multi_tool_use.parallel|apply_patch|functions.apply_patch|Edit|Write|MultiEdit"
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "DESKPET_HOOK_EVENT=\"PreToolUse\" node \"./hooks/deskpet-state.js\"",
+            "timeout": 3,
+            "statusMessage": "Deskpet: working"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "DESKPET_HOOK_EVENT=\"PermissionRequest\" node \"./hooks/deskpet-state.js\"",
+            "timeout": 3,
+            "statusMessage": "Deskpet: needs attention"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "DESKPET_HOOK_EVENT=\"PostToolUse\" node \"./hooks/deskpet-state.js\"",
+            "timeout": 3,
+            "statusMessage": "Deskpet: tool finished"
+          }
+        ],
+        "matcher": "Bash|exec_command|functions.exec_command|multi_tool_use.parallel|apply_patch|functions.apply_patch|Edit|Write|MultiEdit"
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "DESKPET_HOOK_EVENT=\"PostToolUse\" node \"./hooks/deskpet-state.js\"",
+            "timeout": 3,
+            "statusMessage": "Deskpet: tool finished"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "DESKPET_HOOK_EVENT=\"Stop\" node \"./hooks/deskpet-state.js\"",
+            "timeout": 3,
+            "statusMessage": "Deskpet: completed"
+          }
+        ]
+      }
+    ],
+    "Interrupt": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "DESKPET_HOOK_EVENT=\"Interrupt\" node \"./hooks/deskpet-state.js\"",
+            "timeout": 3,
+            "statusMessage": "Deskpet: interrupted"
+          }
+        ]
+      }
+    ]
+  }
+}

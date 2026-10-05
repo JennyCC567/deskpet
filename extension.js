@@ -80,6 +80,21 @@ function isProcessAlive(pid) {
 }
 
 function resolveElectronPath(context) {
+  const configuredPath = vscode.workspace.getConfiguration("deskpet").get("electronPath", "");
+  const candidates = [process.env.DESKPET_ELECTRON_PATH, configuredPath].filter(Boolean);
+
+  for (const candidate of candidates) {
+    const electronPath = path.isAbsolute(candidate)
+      ? candidate
+      : path.resolve(context.extensionPath, candidate);
+    try {
+      fs.accessSync(electronPath, fs.constants.X_OK);
+      return electronPath;
+    } catch {
+      // Fall through to the bundled or installed Electron package.
+    }
+  }
+
   try {
     const electronPath = require("electron");
     if (typeof electronPath === "string") {

@@ -224,6 +224,7 @@ function sendState(extra = {}) {
     action: state.action,
     visualVariant: state.visualVariant,
     pose: state.pose,
+    sleeping: state.sleeping,
     visualRevision: state.visualRevision,
     direction: state.direction,
     projectState: state.projectState,
@@ -689,7 +690,32 @@ function beginSleep() {
   clearPendingAction();
   clearActiveActionPlayback();
   const action = weightedAction(entriesForInteraction("sleep"));
-  setVisual("sleep", action, randomBetween(7000, 15000), { visualVariant: "still" });
+  beginTimedAction("sleep", action, randomBetween(7000, 15000));
+}
+
+function wakeFromSleep() {
+  state.sleeping = false;
+  const currentAction = resolveAction(state.action);
+  const exitAction = currentAction?.exitAction;
+  if (state.mode === "sleep" && exitAction && resolveAction(exitAction)) {
+    setVisual("action_exit", exitAction, actionDuration(exitAction, 1000), { visualVariant: "animated" });
+    return;
+  }
+
+  chooseNextMode();
+}
+
+function beginDirectDrag(point) {
+  if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) {
+    return;
+  }
+
+  state.dragging = true;
+  state.dragPhase = "direct";
+  state.dragMotionEnabled = true;
+  state.dragOffsetX = point.x;
+  state.dragOffsetY = point.y;
+  state.velocityY = 0;
 }
 
 function shouldUseProjectVisual(logicState) {
@@ -726,8 +752,6 @@ function chooseNextMode() {
   const roll = Math.random();
   if (roll < 0.14) {
     beginWander();
-  } else if (roll < 0.28) {
-    beginSleep();
   } else if (roll < 0.62) {
     beginAction();
   } else {
@@ -1256,11 +1280,11 @@ function buildPetMenuTemplate() {
     {
       label: state.sleeping ? "Wake" : "Sleep",
       click: () => {
-        state.sleeping = !state.sleeping;
-        if (state.sleeping) {
+        if (!state.sleeping) {
+          state.sleeping = true;
           beginSleep();
         } else {
-          chooseNextMode();
+          wakeFromSleep();
         }
       }
     },
@@ -1400,8 +1424,26 @@ ipcMain.on("deskpet:ready", (_event, size) => {
   showStatusBubble(2400);
 });
 
+ipcMain.on("deskpet:resize", (_event, size) => {
+  if (!size || !Number.isFinite(size.width) || !Number.isFinite(size.height) || !state.ready) {
+    return;
+  }
+
+  const bottom = state.y + state.height;
+  state.width = Math.round(size.width);
+  state.height = Math.round(size.height);
+  state.y = bottom - state.height;
+  keepInsideWorkArea();
+  moveWindow();
+});
+
 ipcMain.on("deskpet:pointer-down", (_event, point) => {
   if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) {
+    return;
+  }
+
+  if (state.sleeping) {
+    beginDirectDrag(point);
     return;
   }
 
@@ -1420,9 +1462,16 @@ ipcMain.on("deskpet:pointer-up", () => {
     return;
   }
 
+  const wasDirectDrag = state.dragPhase === "direct";
   state.dragging = false;
   state.dragMotionEnabled = false;
   state.velocityY = 0;
+  state.dragPhase = "";
+  if (wasDirectDrag) {
+    moveWindow();
+    return;
+  }
+
   beginDragDrop();
 });
 

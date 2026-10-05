@@ -4,6 +4,11 @@
   "description": "A transparent desktop puppy companion with optional editor project awareness.",
   "version": "0.1.0",
   "private": true,
+  "publisher": "jennycc567",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JennyCC567/deskpet.git"
+  },
   "license": "MIT",
   "main": "./extension.js",
   "engines": {
@@ -74,6 +79,11 @@
           "maximum": 320,
           "description": "Distance in pixels between Deskpet and the bottom of the current display."
         },
+        "deskpet.electronPath": {
+          "type": "string",
+          "default": "",
+          "description": "Optional path to an Electron executable. Useful for packaged VSIX installs that do not bundle Electron."
+        },
         "deskpet.statusBubble": {
           "type": "boolean",
           "default": true,
@@ -108,10 +118,16 @@
     "stop": "node scripts/stop.js",
     "status": "node scripts/status.js",
     "event": "node scripts/event.js",
+    "install:codex-hooks": "node scripts/install-codex-hooks.js",
+    "install:codex-pet": "node scripts/install-codex-pet.js",
+    "install:codex-native-pet": "node scripts/install-codex-pet.js",
+    "install:codex-bridge": "node scripts/install-codex-hooks.js",
+    "install:codex": "node scripts/install-codex.js",
     "validate": "node scripts/validate-assets.js",
-    "check": "npm run validate && node --check extension.js && node --check pet-app/main.js && node --check pet-app/preload.js && node --check pet-app/renderer.js && node --check scripts/start.js && node --check scripts/status.js && node --check scripts/stop.js && node --check scripts/event.js && node --check scripts/validate-assets.js"
+    "check": "npm run validate && node --check extension.js && node --check pet-app/main.js && node --check pet-app/preload.js && node --check pet-app/renderer.js && node --check scripts/start.js && node --check scripts/status.js && node --check scripts/stop.js && node --check scripts/event.js && node --check scripts/install-codex-hooks.js && node --check scripts/install-codex-pet.js && node --check scripts/install-codex.js && node --check scripts/validate-assets.js && node --check hooks/deskpet-state.js",
+    "package:vscode": "npx @vscode/vsce package"
   },
-  "devDependencies": {
-    "electron": "^44.4.3"
+  "dependencies": {
+    "electron": "^44.4.4"
   }
 }

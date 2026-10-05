@@ -34,6 +34,9 @@ contextBridge.exposeInMainWorld("deskpet", {
   ready(size) {
     ipcRenderer.send("deskpet:ready", size);
   },
+  resize(size) {
+    ipcRenderer.send("deskpet:resize", size);
+  },
   pointerDown(point) {
     ipcRenderer.send("deskpet:pointer-down", point);
   },
